@@ -49,12 +49,13 @@ html = f'''<!doctype html>
 <title>{TITLE}</title>
 <meta name="description" content="{DESC}">
 <meta name="robots" content="index,follow">
-<meta name="theme-color" content="#EBEFEC">
+<meta name="theme-color" content="#F3F6F8">
 <meta property="og:type" content="website">
 <meta property="og:title" content="{TITLE}">
 <meta property="og:description" content="{DESC}">
 <meta property="og:locale" content="fr_FR">
 <link rel="icon" href="{ICON}">
+<script>try{{var t=localStorage.getItem('capavril:theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t)}}catch(e){{}}</script>
 <style>:root{{color-scheme:light;padding:env(safe-area-inset-top,0px) 0 env(safe-area-inset-bottom,0px)}}body{{margin:0}}img{{max-width:100%}}[hidden]{{display:none!important}}</style>
 {head_part}
 </head>
@@ -81,11 +82,11 @@ privacy = f'''<!doctype html>
 <meta name="referrer" content="no-referrer"><meta name="robots" content="index,follow">
 <title>Confidentialité – Cap Stage</title>
 <style>
-:root{{color-scheme:light dark;--bg:#EBEFEC;--fg:#13201C;--mute:#465650;--line:#D5DCD7;--accent:#2447C6}}
-@media (prefers-color-scheme:dark){{:root{{--bg:#0C1311;--fg:#E5ECE8;--mute:#AEBBB5;--line:#27322E;--accent:#7C98FF}}}}
-body{{margin:0;background:var(--bg);color:var(--fg);font:16px/1.65 "IBM Plex Sans","Segoe UI",system-ui,sans-serif}}
+:root{{color-scheme:light dark;--bg:#F3F6F8;--fg:#0D1B28;--mute:#42566A;--line:rgba(13,27,40,.11);--accent:#0B7A80}}
+@media (prefers-color-scheme:dark){{:root{{--bg:#09111A;--fg:#E7EEF5;--mute:#A8B7C6;--line:rgba(231,238,245,.11);--accent:#4ED8C6}}}}
+body{{margin:0;background:var(--bg);color:var(--fg);font:16px/1.65 "IBM Plex Sans","Segoe UI",system-ui,sans-serif;background-image:radial-gradient(880px 520px at 94% -10%,rgba(32,190,176,.16),transparent 64%),radial-gradient(760px 480px at -8% 2%,rgba(255,128,92,.11),transparent 62%);background-repeat:no-repeat;background-attachment:fixed}}
 main{{max-width:720px;margin:0 auto;padding:32px 20px 64px}}
-h1{{font-size:30px;line-height:1.2;margin:0 0 8px}} h2{{font-size:19px;margin:32px 0 8px}}
+h1{{font:700 40px/1.1 "Bricolage Grotesque",system-ui,sans-serif;letter-spacing:-.035em;margin:0 0 8px}} h2{{font-size:19px;margin:32px 0 8px}}
 p,li{{color:var(--mute)}} strong{{color:var(--fg)}} a{{color:var(--accent)}}
 code{{font-family:ui-monospace,Menlo,monospace;font-size:.9em;border:1px solid var(--line);border-radius:5px;padding:0 5px}}
 </style></head><body><main>
