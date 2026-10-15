@@ -291,6 +291,22 @@ table.tbl{width:100%;border-collapse:collapse;min-width:760px}
 .lock{max-width:520px;margin:12vh auto 0}
 .banner.info{border-color:var(--line);background:var(--surface)}
 .lockform{display:grid;gap:10px;max-width:420px}
+.gating .side{display:none}
+.gating .app{grid-template-columns:minmax(0,1fr)}
+.gating .main{padding:0}
+.gate{min-height:100vh;display:grid;place-items:center;padding:24px 16px}
+.gate-card{width:min(440px,100%);background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:34px 30px;display:flex;flex-direction:column;gap:16px;box-shadow:var(--shadow)}
+.gate-mark{width:46px;height:46px;border-radius:12px;background:var(--ink);color:var(--bg);display:grid;place-items:center}
+.gate-card h1{margin:0;font:700 32px/1.1 var(--font-display);letter-spacing:-.02em}
+.gate-card .lead{margin:0;color:var(--ink-2);font-size:15.5px}
+.gbtn{display:flex;align-items:center;justify-content:center;gap:12px;width:100%;padding:12px 16px;border-radius:10px;border:1px solid #dadce0;background:#fff;color:#3c4043;font:500 15.5px var(--font-body)}
+.gbtn:hover{background:#f8f9fa;box-shadow:0 1px 3px rgba(60,64,67,.3)}
+.gbtn:disabled{opacity:.65;cursor:progress}
+.gate-points{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:7px;color:var(--ink-2);font-size:13.5px}
+.gate-points li{display:flex;gap:9px;align-items:flex-start}
+.gate-points .ic{color:var(--ok);margin-top:2px}
+.gate-card .skip{align-self:flex-start}
+.gate-card .fine{margin:0;font-size:12.5px;color:var(--ink-3)}
 .ro .wr{display:none!important}
 
 @media (max-width:900px){
@@ -562,7 +578,7 @@ function onData(col){
   }
   requestRender();
 }
-function requestRender(){clearTimeout(raf);raf=setTimeout(()=>{renderNav();renderMain()},16)}
+function requestRender(){clearTimeout(raf);raf=setTimeout(()=>{renderNav();renderSideFoot();renderMain()},16)}
 function saveState(t,err){const e=$('#savestate');if(e){e.textContent=t;e.className='save'+(err?' err':'')}}
 function touch(){
   if(!D) return; D.dirty=true;saveState('Modifications…');
@@ -616,21 +632,45 @@ function renderNav(){
 }
 function renderSideFoot(){
   const f=$('#sidefoot');if(!f)return;
-  f.replaceChildren(...[S.store&&h('span',null,[icon('lock',13),S.store.mode==='db'?' Données privées, réservées à votre compte.':' Données stockées sur cet appareil uniquement.']),
+  f.replaceChildren(...[S.store&&h('span',null,[icon('lock',13),S.store.mode==='db'?' Données privées, réservées à votre compte.':(GD.available&&GD.status==='ok'?' Synchronisé avec Google Drive'+(GD.user&&GD.user.name?' ('+GD.user.name+').':'.'):' Données stockées sur cet appareil uniquement.')]),
     S.store&&h('button',{class:'link',type:'button',style:'align-self:flex-start',onclick:()=>go('settings')},'Sauvegarde et réglages')].filter(Boolean));
 }
 
 /* ---------- main render ---------- */
 function renderMain(){
   const m=$('#main');if(!m)return;
+  document.body.classList.remove('gating');
   if(S.locked==='vault'){m.replaceChildren(viewUnlock());return}
   if(S.locked){m.replaceChildren(viewLocked());return}
   const ae=document.activeElement,fid=ae&&m.contains(ae)?ae.id:'',ss=fid&&ae.selectionStart;
   let view;
+  if(gateWanted()){document.body.classList.add('gating');m.replaceChildren(viewGate());return}
   if(!S.store||!(S.loaded.apps&&S.loaded.projects&&S.loaded.settings)) view=h('div',{class:'empty'},h('b',null,'Chargement de vos données…'));
   else view={overview:viewOverview,apps:viewApps,dossiers:viewDossiers,projects:viewProjects,skills:viewSkills,settings:viewSettings}[S.view]();
   m.replaceChildren(S.error&&h('div',{class:'banner',role:'alert'},S.error),S.note&&h('div',{class:'banner'},S.note),fsBanner(),view);
   if(fid){const n=document.getElementById(fid);if(n){n.focus();try{if(ss!==false&&ss!=null)n.setSelectionRange(ss,ss)}catch(e){}}}
+}
+function gateWanted(){
+  if(!GD.available||S.locked)return false;
+  if(!(S.loaded.apps&&S.loaded.projects&&S.loaded.settings))return false;
+  if(GD.status==='needs-auth')return !GD.skipSession;
+  if(GD.status==='off')return !GD.skipSession&&!GD.skipForever;
+  return false;
+}
+const googleG=()=>h('span',{class:'ic',html:'<svg width="20" height="20" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>'});
+function viewGate(){
+  const again=GD.status==='needs-auth',name=GD.user&&GD.user.name;
+  const preload=()=>GD.lib().catch(()=>{});
+  const point=t=>h('li',null,icon('check',15),h('span',null,t));
+  return h('div',{class:'gate'},h('div',{class:'gate-card'},
+    h('div',{class:'gate-mark',html:'<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 19L19 5M9 5h10v10"/></svg>'}),
+    h('h1',null,again&&name?'Bonjour '+name:'Cap Stage'),
+    h('p',{class:'lead'},again?'Reconnectez-vous pour retrouver vos candidatures et reprendre la synchronisation.':'Suivez toutes vos candidatures de stage au même endroit. Connectez-vous avec Google pour retrouver vos données sur tous vos appareils.'),
+    GD.embedded?h('p',{class:'hint',style:'margin:0'},'La fenêtre de connexion Google ne s’ouvre pas dans ce navigateur (navigateur intégré à l’application Claude). Ouvrez ce site dans Chrome, Safari, Firefox ou Edge.')
+      :h('button',{class:'gbtn',type:'button',disabled:GD.busy,onpointerenter:preload,onfocus:preload,ontouchstart:preload,onclick:()=>again?GD.reconnect():GD.connect()},googleG(),GD.busy?'Connexion en cours…':(again?'Se reconnecter avec Google':'Se connecter avec Google')),
+    h('ul',{class:'gate-points'},point('Vos données sont enregistrées dans un espace privé de votre Google Drive.'),point('Le site n’accède à aucun autre fichier, et son auteur ne voit jamais vos données.'),point('Gratuit, sans publicité.')),
+    h('button',{class:'link skip',type:'button',onclick:()=>{if(again)GD.skipSession=true;else{try{localStorage.setItem('capavril:nogate','1')}catch(e){}GD.skipSession=true}requestRender()}},again?'Continuer sans me reconnecter':'Continuer sans compte (données sur cet appareil uniquement)'),
+    h('p',{class:'fine'},h('a',{href:'confidentialite.html',target:'_blank',rel:'noopener noreferrer'},'Politique de confidentialité'))));
 }
 function viewLocked(){return h('div',{class:'empty lock'},icon('lock',28),h('b',null,'Accès réservé'),h('p',null,'Ces données appartiennent au propriétaire de cette page. Connectez-vous avec son compte Claude pour y accéder.'))}
 const head=(t,sub,...acts)=>h('div',{class:'head'},h('div',null,h('h1',null,t),sub&&h('p',null,sub)),h('div',{class:'acts'},acts));
@@ -922,17 +962,18 @@ const FILES_PLAIN=['cap-stage.json','candidatures.csv','cap-stage.precedent.json
 const sig=(a,p)=>a.concat(p).map(d=>d.id+'@'+d.updatedAt).sort().join('|');
 /* ----- Google Drive sync: the user's own account, private app-data folder ----- */
 const GOOGLE_CLIENT_ID='';
-const GD_SCOPE='https://www.googleapis.com/auth/drive.appdata';
+const GD_SCOPE='https://www.googleapis.com/auth/drive.appdata openid profile';
 const GD_API='https://www.googleapis.com/drive/v3/files',GD_UP='https://www.googleapis.com/upload/drive/v3/files';
 const GD={
   get available(){return !!GOOGLE_CLIENT_ID&&STANDALONE&&!!S.store&&S.store.mode==='local'},
   get embedded(){return /\bElectron\/|\bClaude\//.test(navigator.userAgent)},
-  status:'off',token:'',tokenExp:0,err:'',lastWrite:'',timer:0,chain:Promise.resolve(),ids:{},lastMode:null,
+  status:'off',token:'',tokenExp:0,err:'',lastWrite:'',timer:0,chain:Promise.resolve(),ids:{},lastMode:null,busy:false,user:null,skipSession:false,
+  get skipForever(){try{return localStorage.getItem('capavril:nogate')==='1'}catch(e){return false}},
   meta(){try{return JSON.parse(localStorage.getItem('capavril:drive')||'{}')}catch(e){return {}}},
   setMeta(o){try{localStorage.setItem('capavril:drive',JSON.stringify(Object.assign(this.meta(),o)))}catch(e){}},
   init(){
     if(!this.available)return;
-    const m=this.meta();if(m.connected){this.lastWrite=m.lastWrite||'';this.status='needs-auth'}
+    const m=this.meta();if(m.connected){this.lastWrite=m.lastWrite||'';this.status='needs-auth';this.user={sub:m.sub||'',name:m.name||''}}
     requestRender();
   },
   lib(){
@@ -987,17 +1028,45 @@ const GD={
     try{this.ids[name]=(await r.json()).id}catch(e){}
   },
   async remove(name){try{const f=await this.find(name);if(f){await this.api(GD_API+'/'+f.id,{method:'DELETE'});delete this.ids[name]}}catch(e){}},
-  async connect(){
-    try{await this.authorize()}catch(e){const m=this.explain(e);if(m)toast(m);requestRender();return}
-    this.status='ok';this.err='';this.setMeta({connected:true});
-    try{await this.syncStart(true)}catch(e){if(!(e&&e.auth)){this.status='error';this.err=(e&&e.message)||'Synchronisation impossible.'}}
-    requestRender();
+  async userInfo(){
+    try{const j=await (await this.api('https://www.googleapis.com/oauth2/v3/userinfo')).json();this.user={sub:String(j.sub||''),name:String(j.given_name||j.name||'').slice(0,60)}}
+    catch(e){this.user={sub:'',name:''}}
   },
-  async reconnect(){
-    try{await this.authorize()}catch(e){const m=this.explain(e);if(m)toast(m);return}
-    this.status='ok';this.err='';
-    try{await this.syncStart(false)}catch(e){if(!(e&&e.auth)){this.status='error';this.err=(e&&e.message)||'Synchronisation impossible.'}}
-    requestRender();
+  async bind(){
+    const sub=this.user&&this.user.sub;
+    if(!sub)return true;
+    let owner='';try{owner=localStorage.getItem('capavril:owner')||''}catch(e){}
+    if(owner&&owner!==sub&&S.apps.size+S.projects.size>0){
+      const r=await dialog('Autre compte Google',h('p',{class:'hint'},'Les données enregistrées sur cet appareil appartiennent à un autre compte Google. Pour protéger leur confidentialité, elles ne sont pas mélangées avec les vôtres.'),
+        [{id:'cancel',label:'Annuler la connexion'},{id:'wipe',label:'Effacer cet appareil et continuer',primary:true}]);
+      if(r!=='wipe')return false;
+      S.store.replaceAll({apps:[],projects:[],prefs:null});
+    }
+    try{localStorage.setItem('capavril:owner',sub)}catch(e){}
+    this.setMeta({sub,name:this.user.name,connected:true});
+    return true;
+  },
+  dropToken(){
+    try{if(this.token&&window.google&&google.accounts)google.accounts.oauth2.revoke(this.token,()=>{})}catch(e){}
+    this.token='';this.tokenExp=0;this.ids={};
+    const m=this.meta();this.status=m.connected?'needs-auth':'off';this.user=m.connected?{sub:m.sub||'',name:m.name||''}:null;
+  },
+  async signIn(first){
+    if(this.busy)return;this.busy=true;requestRender();
+    try{
+      try{await this.authorize()}catch(e){const m=this.explain(e);if(m)toast(m);return}
+      await this.userInfo();
+      if(!(await this.bind())){this.dropToken();return}
+      this.status='ok';this.err='';this.skipSession=false;this.setMeta({connected:true});
+      try{await this.syncStart(first)}catch(e){if(!(e&&e.auth)){this.status='error';this.err=(e&&e.message)||'Synchronisation impossible.'}}
+    }finally{this.busy=false;requestRender()}
+  },
+  connect(){return this.signIn(true)},
+  reconnect(){return this.signIn(false)},
+  async signOutAndWipe(){
+    await this.forget(false);S.store.replaceAll({apps:[],projects:[],prefs:null});
+    try{localStorage.removeItem('capavril:owner');localStorage.removeItem('capavril:nogate')}catch(e){}
+    this.user=null;toast('Déconnecté. Les données de cet appareil ont été effacées ; elles restent dans votre Google Drive.');requestRender();
   },
   async syncStart(first){
     this.status='ok';
@@ -1056,7 +1125,7 @@ function drivePanel(){
     h('p',{class:'hint'},'Connectez votre compte Google pour enregistrer automatiquement vos données dans un espace privé de votre Google Drive, réservé à cette application. Vous les retrouvez sur tous vos appareils et tous vos navigateurs. Le site n’accède à aucun de vos autres fichiers, et son auteur ne voit jamais vos données.'),
     h('div',{class:'quick'},signIn('Se connecter avec Google',()=>GD.connect())));
   else body=h('div',null,
-    h('p',{class:'hint'},st==='ok'?[h('span',{class:'pill ok'},'Actif'),' Dernière synchronisation : '+fmt(GD.lastWrite)+'.']:
+    h('p',{class:'hint'},st==='ok'?[h('span',{class:'pill ok'},'Actif'),' '+(GD.user&&GD.user.name?'Connecté : '+GD.user.name+'. ':'')+'Dernière synchronisation : '+fmt(GD.lastWrite)+'.']:
       st==='needs-auth'?'En pause : reconnectez-vous à Google pour reprendre (cela arrive environ toutes les heures et à chaque nouvelle session).':
       st==='paused'?'En pause.':'Erreur : '+(GD.err||'inconnue')+'.'),
     st==='ok'&&h('p',{class:'hint'},S.store.isLocked()?'Vos données sont chiffrées avant l’envoi : Google ne peut pas les lire.':'Vos données sont enregistrées dans votre Drive, sans chiffrement supplémentaire. Activez le mot de passe plus bas pour qu’elles soient chiffrées avant l’envoi.'),
@@ -1066,7 +1135,7 @@ function drivePanel(){
       st==='needs-auth'&&signIn('Se reconnecter',()=>GD.reconnect()),
       st==='paused'&&h('button',{class:'btn primary',type:'button',onclick:()=>GD.syncStart(true).catch(()=>{})},'Reprendre'),
       st==='error'&&signIn('Réessayer',()=>GD.reconnect()),
-      h('button',{class:'btn',type:'button',onclick:async()=>{await GD.forget(false);toast('Google Drive déconnecté. Vos données restent dans votre Drive.')}},'Déconnecter')));
+      h('button',{class:'btn',type:'button',onclick:async()=>{await GD.forget(false);toast('Déconnecté. Vos données restent dans votre Drive et sur cet appareil.')}},'Se déconnecter'),armed('Se déconnecter et effacer cet appareil',()=>GD.signOutAndWipe())));
   return h('section',{class:'panel'},h('h2',null,'Synchronisation Google Drive'),body);
 }
 const FS={

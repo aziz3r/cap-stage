@@ -1,7 +1,7 @@
 import os, re, sys
 # usage: python3 build/build.py OUT_DIR [GOOGLE_CLIENT_ID]
 # Génère index.html et confidentialite.html à partir de build/source.html.
-# Sans identifiant client Google, la synchronisation Drive est désactivée et la CSP interdit tout envoi réseau.
+# Sans identifiant client Google, la synchronisation Drive est absente et la CSP interdit tout envoi réseau.
 SRC = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'source.html')
 OUT = sys.argv[1]
 GID = sys.argv[2] if len(sys.argv) > 2 else ''
@@ -63,7 +63,7 @@ open(os.path.join(OUT, '.nojekyll'), 'w').write('')
 
 drive = '''
 <h2>Google Drive (si vous activez la synchronisation)</h2>
-<p>Quand vous cliquez sur « Se connecter avec Google », le site demande une seule autorisation : <code>drive.appdata</code>. Elle donne accès à un <strong>espace caché propre à cette application</strong> dans votre Google Drive. Le site ne peut lire, modifier ni lister aucun de vos autres fichiers. Vos données y sont enregistrées dans un fichier <code>cap-stage.json</code> (ou <code>cap-stage.chiffre.json</code> si vous avez activé le verrouillage par mot de passe, auquel cas elles sont chiffrées avant l’envoi et Google ne peut pas les lire).</p>
+<p>Quand vous cliquez sur « Se connecter avec Google », le site demande trois autorisations : <code>drive.appdata</code>, <code>openid</code> et <code>profile</code>. La première donne accès à un <strong>espace caché propre à cette application</strong> dans votre Google Drive. Les deux autres permettent de lire votre prénom et un identifiant de compte, uniquement pour vous saluer et pour éviter que deux personnes qui partagent un appareil voient leurs données mélangées ; ils restent dans votre navigateur. Le site ne peut lire, modifier ni lister aucun de vos autres fichiers. Vos données y sont enregistrées dans un fichier <code>cap-stage.json</code> (ou <code>cap-stage.chiffre.json</code> si vous avez activé le verrouillage par mot de passe, auquel cas elles sont chiffrées avant l’envoi et Google ne peut pas les lire).</p>
 <p>L’auteur du site n’a <strong>aucun accès</strong> à cet espace : les échanges se font directement entre votre navigateur et Google. Ces données sont soumises aux conditions et à la politique de confidentialité de Google.</p>
 <p>Pour couper l’accès, utilisez « Déconnecter » dans Réglages, ou retirez l’application dans <a href="https://myaccount.google.com/permissions" rel="noopener noreferrer">les autorisations de votre compte Google</a>. « Tout effacer » supprime aussi le fichier de votre Drive si vous êtes connecté à ce moment-là.</p>
 ''' if GID else ''
