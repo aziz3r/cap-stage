@@ -520,6 +520,7 @@ function localStore(init){
   const persist=()=>{
     if(vault){const v=vault;chain=chain.then(async()=>{try{localStorage.setItem(VKEY,await encJson(v.key,v.salt,mem))}catch(e){fail()}})}
     else for(const c of COLS) try{localStorage.setItem('capavril:'+c,JSON.stringify(mem[c]))}catch(e){fail();break}
+    if(S.onPersist)S.onPersist();
   };
   window.addEventListener('storage',e=>{
     if(!e.key||e.key.indexOf('capavril:')!==0) return;
@@ -529,28 +530,40 @@ function localStore(init){
   });
   return {mode:'local',
     isLocked:()=>!!vault,
+    password:()=>vault?vault.pw:'',
+    backup:()=>({app:'cap-stage',version:1,savedAt:new Date().toISOString(),apps:list('apps'),projects:list('projects'),prefs:(mem.settings&&mem.settings.prefs)||null}),
+    encryptBackup:b=>encJson(vault.key,vault.salt,b),
+    replaceAll(b){
+      mem.apps={};mem.projects={};mem.settings={};
+      for(const d of b.apps){const x=Object.assign({},d);delete x.id;mem.apps[d.id]=x}
+      for(const d of b.projects){const x=Object.assign({},d);delete x.id;mem.projects[d.id]=x}
+      if(b.prefs)mem.settings.prefs=b.prefs;
+      persist();for(const c of COLS)emit(c);
+    },
     subscribe(c,cb){subs[c].push(cb);setTimeout(()=>cb(list(c)),0);return ()=>{subs[c]=subs[c].filter(f=>f!==cb)}},
     save(c,id,data){mem[c][id]=JSON.parse(JSON.stringify(data));persist();emit(c);return Promise.resolve()},
     remove(c,id){delete mem[c][id];persist();emit(c);return Promise.resolve()},
     async enableLock(pw){const salt=crypto.getRandomValues(new Uint8Array(16));const key=await deriveKey(pw,salt);const blob=await encJson(key,salt,mem);
-      await decJson(key,blob);localStorage.setItem(VKEY,blob);for(const c of COLS)try{localStorage.removeItem('capavril:'+c)}catch(e){}vault={key,salt}},
+      await decJson(key,blob);localStorage.setItem(VKEY,blob);for(const c of COLS)try{localStorage.removeItem('capavril:'+c)}catch(e){}vault={key,salt,pw}},
     async disableLock(){for(const c of COLS)localStorage.setItem('capavril:'+c,JSON.stringify(mem[c]));localStorage.removeItem(VKEY);vault=null}
   };
 }
 async function unlockVault(pw){
   const blob=localStorage.getItem(VKEY),o=JSON.parse(blob),salt=unb64(o.salt),key=await deriveKey(pw,salt);
   const mem=await decJson(key,blob);
-  S.store=localStore({mem:Object.assign({apps:{},projects:{},settings:{}},mem),vault:{key,salt}});
+  S.store=localStore({mem:Object.assign({apps:{},projects:{},settings:{}},mem),vault:{key,salt,pw}});
   S.locked=false;document.body.classList.remove('ro');renderSideFoot();attach();renderNav();
 }
 function attach(){
+  if(STANDALONE)S.onReady=()=>FS.init();
+  const ready=()=>{if(S.onReady&&S.loaded.apps&&S.loaded.projects&&S.loaded.settings){const f=S.onReady;S.onReady=null;f()}};
   for(const col of COLS){
     S.store.subscribe(col,docs=>{
-      if(col==='settings'){const p=docs.find(d=>d.id==='prefs')||{};S.prefs={targetStart:vd(p.targetStart),eventLabel:String(p.eventLabel||'').slice(0,120),eventDate:vd(p.eventDate)};S.loaded.settings=true;S.rev++;requestRender();return}
+      if(col==='settings'){const p=docs.find(d=>d.id==='prefs')||{};S.prefs={targetStart:vd(p.targetStart),eventLabel:String(p.eventLabel||'').slice(0,120),eventDate:vd(p.eventDate)};S.loaded.settings=true;S.rev++;requestRender();ready();return}
       const m=S[col];m.clear();
       docs.forEach(d=>m.set(d.id,fix(col,d)));
       if(D&&D.kind===col&&D.dirty&&D.doc) m.set(D.id,D.doc);
-      S.loaded[col]=true;S.rev++;onData(col);
+      S.loaded[col]=true;S.rev++;onData(col);ready();
     },e=>{S.error='La base de données ne répond pas ('+((e&&e.code)||'erreur')+').';S.loaded[col]=true;renderMain()});
   }
 }
@@ -630,7 +643,7 @@ function renderMain(){
   let view;
   if(!S.store||!(S.loaded.apps&&S.loaded.projects&&S.loaded.settings)) view=h('div',{class:'empty'},h('b',null,'Chargement de vos données…'));
   else view={overview:viewOverview,apps:viewApps,dossiers:viewDossiers,projects:viewProjects,skills:viewSkills,settings:viewSettings}[S.view]();
-  m.replaceChildren(S.error&&h('div',{class:'banner',role:'alert'},S.error),S.note&&h('div',{class:'banner'},S.note),view);
+  m.replaceChildren(S.error&&h('div',{class:'banner',role:'alert'},S.error),S.note&&h('div',{class:'banner'},S.note),fsBanner(),view);
   if(fid){const n=document.getElementById(fid);if(n){n.focus();try{if(ss!==false&&ss!=null)n.setSelectionRange(ss,ss)}catch(e){}}}
 }
 function viewLocked(){return h('div',{class:'empty lock'},icon('lock',28),h('b',null,'Accès réservé'),h('p',null,'Ces données appartiennent au propriétaire de cette page. Connectez-vous avec son compte Claude pour y accéder.'))}
@@ -854,27 +867,192 @@ function armed(label,fn){const b=h('button',{class:'btn danger wr',type:'button'
   if(!b.classList.contains('armed')){b.classList.add('armed');b.replaceChildren(icon('trash',14),'Confirmer : '+label);setTimeout(()=>{if(b.isConnected){b.classList.remove('armed');b.replaceChildren(icon('trash',14),label)}},4000);return}fn()}},icon('trash',14),label);return b}
 function savePrefs(){const d=Object.assign({},S.prefs);S.rev++;Promise.resolve(S.store.save('settings','prefs',d)).catch(()=>toast('Enregistrement impossible.'))}
 async function wipeAll(){
-  if(STANDALONE){try{Object.keys(localStorage).filter(k=>k.indexOf('capavril:')===0).forEach(k=>localStorage.removeItem(k))}catch(e){}location.reload();return}
+  if(STANDALONE){try{await FS.forget(true)}catch(e){}try{Object.keys(localStorage).filter(k=>k.indexOf('capavril:')===0).forEach(k=>localStorage.removeItem(k))}catch(e){}location.reload();return}
   for(const a of [...S.apps.keys()])await removeDoc('apps',a);for(const p of [...S.projects.keys()])await removeDoc('projects',p);
   try{await S.store.remove('settings','prefs')}catch(e){}toast('Toutes les données ont été effacées.');requestRender();
+}
+function parseBackup(o){
+  const clean=d=>{const y={};for(const k of Object.keys(d))if(k!=='__proto__'&&k!=='constructor')y[k]=d[k];return y};
+  const ok=d=>d&&typeof d==='object'&&typeof d.id==='string'&&/^[A-Za-z0-9_\-.~:@+]{1,200}$/.test(d.id);
+  const take=(k,kind)=>(Array.isArray(o&&o[k])?o[k]:[]).filter(ok).slice(0,3000).map(d=>fix(kind,clean(d)));
+  const pr=o&&o.prefs&&typeof o.prefs==='object'?{targetStart:vd(o.prefs.targetStart),eventLabel:String(o.prefs.eventLabel||'').slice(0,120),eventDate:vd(o.prefs.eventDate)}:null;
+  return {apps:take('apps','apps'),projects:take('projects','projects'),prefs:pr,savedAt:String((o&&(o.savedAt||o.exportedAt))||'')};
+}
+async function openBackup(text){
+  let o;try{o=JSON.parse(text)}catch(e){toast('Ce fichier n’est pas une sauvegarde valide.');return null}
+  if(o&&o.iv&&o.data&&o.salt){
+    let pw=S.store&&S.store.password?S.store.password():'',tries=0;
+    for(;;){
+      if(!pw)pw=await askPassword(tries?'Mot de passe incorrect. Réessayez.':'Cette sauvegarde est chiffrée. Saisissez le mot de passe utilisé pour la chiffrer.');
+      if(!pw)return null;
+      try{const key=await deriveKey(pw,unb64(o.salt));o=await decJson(key,text);break}
+      catch(e){tries++;pw='';if(tries>=3){toast('Mot de passe incorrect.');return null}}
+    }
+  }
+  return parseBackup(o);
 }
 function importFile(f){
   if(f.size>8*1024*1024){toast('Fichier trop volumineux (8 Mo maximum).');return}
   const r=new FileReader();
   r.onload=async()=>{
-    let o;try{o=JSON.parse(String(r.result))}catch(e){toast('Ce fichier n’est pas une sauvegarde valide.');return}
-    const clean=d=>{const y={};for(const k of Object.keys(d))if(k!=='__proto__'&&k!=='constructor')y[k]=d[k];return y};
-    const ok=d=>d&&typeof d==='object'&&typeof d.id==='string'&&/^[A-Za-z0-9_\-.~:@+]{1,200}$/.test(d.id);
-    const apps=(Array.isArray(o&&o.apps)?o.apps:[]).filter(ok).slice(0,3000),projects=(Array.isArray(o&&o.projects)?o.projects:[]).filter(ok).slice(0,3000);
-    const hasPrefs=o&&o.prefs&&typeof o.prefs==='object';
-    if(!apps.length&&!projects.length&&!hasPrefs){toast('Aucune donnée reconnue dans ce fichier.');return}
+    const b=await openBackup(String(r.result));if(!b)return;
+    if(!b.apps.length&&!b.projects.length&&!b.prefs){toast('Aucune donnée reconnue dans ce fichier.');return}
     try{
-      for(const [kind,items] of [['apps',apps],['projects',projects]])for(const d of items){const c=fix(kind,clean(d));const data=Object.assign({},c);delete data.id;await S.store.save(kind,c.id,data)}
-      if(hasPrefs){S.prefs={targetStart:vd(o.prefs.targetStart),eventLabel:String(o.prefs.eventLabel||'').slice(0,120),eventDate:vd(o.prefs.eventDate)};savePrefs()}
-      toast(plural(apps.length,'candidature importée','candidatures importées')+', '+plural(projects.length,'projet importé','projets importés')+'.');
+      for(const [kind,items] of [['apps',b.apps],['projects',b.projects]])for(const d of items){const data=Object.assign({},d);delete data.id;await S.store.save(kind,d.id,data)}
+      if(b.prefs){S.prefs=b.prefs;savePrefs()}
+      toast(plural(b.apps.length,'candidature importée','candidatures importées')+', '+plural(b.projects.length,'projet importé','projets importés')+'.');
     }catch(e){toast('Import interrompu : '+((e&&e.message)||'erreur')+'.')}
   };
   r.readAsText(f);
+}
+/* ----- dialogs ----- */
+function dialog(title,body,buttons){
+  return new Promise(res=>{
+    const close=v=>{scrim.remove();box.remove();document.removeEventListener('keydown',onKey,true);res(v)};
+    const onKey=e=>{if(e.key==='Escape'){e.stopPropagation();close('cancel')}};
+    const box=h('div',{class:'modal',role:'dialog','aria-modal':'true','aria-label':title},h('h2',null,title),body,
+      h('div',{class:'acts'},buttons.map(b=>h('button',{class:'btn'+(b.primary?' primary':''),type:'button',onclick:()=>close(b.id)},b.label))));
+    const scrim=h('div',{class:'scrim top',onclick:()=>close('cancel')});
+    document.addEventListener('keydown',onKey,true);
+    $('#layer').append(scrim,box);
+    const f=box.querySelector('input,button');if(f)f.focus();
+  });
+}
+async function askPassword(text){
+  let pw='';
+  const input=h('input',{class:'input',id:'dlg-pw',type:'password',autocomplete:'current-password',oninput:e=>pw=e.target.value});
+  const r=await dialog('Mot de passe',h('div',{class:'field'},h('p',{class:'hint'},text),h('label',{for:'dlg-pw'},'Mot de passe'),input),[{id:'cancel',label:'Annuler'},{id:'ok',label:'Déverrouiller',primary:true}]);
+  return r==='ok'?pw:'';
+}
+
+/* ----- automatic folder backup (File System Access API) ----- */
+const idb={
+  open:()=>new Promise((res,rej)=>{const r=indexedDB.open('cap-stage',1);r.onupgradeneeded=()=>r.result.createObjectStore('kv');r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)}),
+  async get(k){const db=await this.open();return new Promise((res,rej)=>{const q=db.transaction('kv').objectStore('kv').get(k);q.onsuccess=()=>res(q.result);q.onerror=()=>rej(q.error)})},
+  async set(k,v){const db=await this.open();return new Promise((res,rej)=>{const t=db.transaction('kv','readwrite');t.objectStore('kv').put(v,k);t.oncomplete=()=>res();t.onerror=()=>rej(t.error);t.onabort=()=>rej(t.error)})},
+  async del(k){const db=await this.open();return new Promise((res,rej)=>{const t=db.transaction('kv','readwrite');t.objectStore('kv').delete(k);t.oncomplete=()=>res();t.onerror=()=>rej(t.error)})}
+};
+const FILES_PLAIN=['cap-stage.json','candidatures.csv','cap-stage.precedent.json'],FILES_ENC=['cap-stage.chiffre.json','cap-stage.precedent.chiffre.json'];
+const sig=(a,p)=>a.concat(p).map(d=>d.id+'@'+d.updatedAt).sort().join('|');
+const FS={
+  get supported(){return !!(window.showDirectoryPicker&&window.indexedDB)},
+  handle:null,status:'off',parentName:'',lastWrite:'',err:'',timer:0,chain:Promise.resolve(),lastBackup:0,
+  meta(){try{return JSON.parse(localStorage.getItem('capavril:folder')||'{}')}catch(e){return {}}},
+  setMeta(o){try{localStorage.setItem('capavril:folder',JSON.stringify(Object.assign(this.meta(),o)))}catch(e){}},
+  async init(){
+    if(!this.supported||!S.store||S.store.mode!=='local')return;
+    try{
+      const hd=await idb.get('handle');if(!hd)return;
+      this.handle=hd;const m=this.meta();this.parentName=m.parentName||'';this.lastWrite=m.lastWrite||'';
+      if((await hd.queryPermission({mode:'readwrite'}))==='granted'){this.status='ok';await this.syncStart(false)}else this.status='needs-permission';
+    }catch(e){this.status='error';this.err='Le dossier n’est plus accessible.'}
+    requestRender();
+  },
+  async connect(){
+    let parent;try{parent=await window.showDirectoryPicker({id:'cap-stage',mode:'readwrite',startIn:'documents'})}catch(e){return}
+    try{
+      const dir=await parent.getDirectoryHandle('Cap Stage',{create:true});
+      this.handle=dir;this.parentName=parent.name;
+      try{await idb.set('handle',dir)}catch(e){toast('Ce navigateur ne peut pas mémoriser le dossier : il faudra le choisir à chaque visite.')}
+      this.setMeta({parentName:parent.name});this.status='ok';this.err='';
+      await this.syncStart(true);
+    }catch(e){this.status='error';this.err=(e&&e.message)||'Impossible de créer le dossier.'}
+    requestRender();
+  },
+  async reconnect(){
+    try{if((await this.handle.requestPermission({mode:'readwrite'}))!=='granted')return;this.status='ok';this.err='';await this.syncStart(false)}
+    catch(e){this.status='error';this.err='Le dossier n’est plus accessible.'}
+    requestRender();
+  },
+  async readFile(){
+    for(const name of ['cap-stage.json','cap-stage.chiffre.json']){
+      try{const fh=await this.handle.getFileHandle(name);const text=await (await fh.getFile()).text();if(text)return {name,text}}
+      catch(e){if(!e||e.name!=='NotFoundError')throw e}
+    }
+    return null;
+  },
+  async put(name,text){const fh=await this.handle.getFileHandle(name,{create:true});const w=await fh.createWritable();await w.write(text);await w.close()},
+  async syncStart(first){
+    this.status='ok';
+    const f=await this.readFile();
+    if(!f){await this.writeNow();if(first)toast('Sauvegarde automatique activée : le dossier « Cap Stage » a été créé.');return}
+    const b=await openBackup(f.text);
+    if(!b){this.status='paused';requestRender();return}
+    const localApps=[...S.apps.values()],localProjects=[...S.projects.values()];
+    if(!localApps.length&&!localProjects.length){this.apply(b);toast('Données chargées depuis le dossier.');return}
+    if(sig(localApps,localProjects)===sig(b.apps,b.projects)){this.lastWrite=b.savedAt||this.lastWrite;this.setMeta({lastWrite:this.lastWrite});return}
+    if(first||(b.savedAt&&b.savedAt>(this.lastWrite||''))){
+      const when=b.savedAt?new Intl.DateTimeFormat('fr-FR',{dateStyle:'long',timeStyle:'short'}).format(new Date(b.savedAt)):'date inconnue';
+      const r=await dialog('Deux jeux de données',h('p',{class:'hint'},'Le dossier contient '+plural(b.apps.length,'candidature','candidatures')+' et '+plural(b.projects.length,'projet','projets')+' (sauvegarde du '+when+'). Ce navigateur en contient '+localApps.length+' et '+localProjects.length+'. Lequel garder ?'),
+        [{id:'cancel',label:'Décider plus tard'},{id:'local',label:'Garder ce navigateur'},{id:'folder',label:'Charger le dossier',primary:true}]);
+      if(r==='folder'){this.apply(b);toast('Données chargées depuis le dossier.')}
+      else if(r==='local'){await this.writeNow();toast('Le dossier a été mis à jour avec les données de ce navigateur.')}
+      else{this.status='paused'}
+      requestRender();
+    }else{await this.writeNow()}
+  },
+  apply(b){S.store.replaceAll(b);this.lastWrite=b.savedAt||new Date().toISOString();this.setMeta({lastWrite:this.lastWrite})},
+  scheduleWrite(){if(this.status!=='ok')return;clearTimeout(this.timer);this.timer=setTimeout(()=>{this.timer=0;this.writeNow()},1000)},
+  writeNow(){
+    if(this.status!=='ok'||!S.store||S.store.mode!=='local')return Promise.resolve();
+    this.chain=this.chain.then(()=>this._write()).catch(()=>{});return this.chain;
+  },
+  async _write(){
+    try{
+      const b=S.store.backup(),locked=S.store.isLocked();
+      const name=locked?FILES_ENC[0]:FILES_PLAIN[0];
+      const text=locked?await S.store.encryptBackup(b):JSON.stringify(b,null,2);
+      if(Date.now()-this.lastBackup>300000){
+        try{const old=await (await (await this.handle.getFileHandle(name)).getFile()).text();if(old){await this.put(locked?FILES_ENC[1]:FILES_PLAIN[2],old);this.lastBackup=Date.now()}}catch(e){}
+      }
+      await this.put(name,text);
+      if(!locked)await this.put('candidatures.csv',csvText());
+      for(const n of locked?FILES_PLAIN:FILES_ENC){try{await this.handle.removeEntry(n)}catch(e){}}
+      this.lastWrite=b.savedAt;this.err='';this.setMeta({lastWrite:this.lastWrite});
+    }catch(e){
+      if(e&&e.name==='NotAllowedError')this.status='needs-permission';else{this.status='error';this.err=(e&&e.message)||'Écriture impossible.'}
+    }
+    requestRender();
+  },
+  async forget(removeFiles){
+    clearTimeout(this.timer);
+    if(removeFiles&&this.handle){for(const n of FILES_PLAIN.concat(FILES_ENC)){try{await this.handle.removeEntry(n)}catch(e){}}}
+    try{await idb.del('handle')}catch(e){}
+    try{localStorage.removeItem('capavril:folder')}catch(e){}
+    this.handle=null;this.status='off';this.lastWrite='';requestRender();
+  }
+};
+S.onPersist=()=>FS.scheduleWrite();
+document.addEventListener('visibilitychange',()=>{if(document.hidden&&FS.status==='ok'&&FS.timer){clearTimeout(FS.timer);FS.timer=0;FS.writeNow()}});
+function fsBanner(){
+  if(!STANDALONE||FS.status==='ok'||FS.status==='off')return '';
+  const msg={'needs-permission':'La sauvegarde automatique est en pause : le navigateur demande de réautoriser l’accès au dossier.','paused':'La sauvegarde automatique est en pause.','error':'Sauvegarde automatique impossible : '+(FS.err||'erreur inconnue')+'.'}[FS.status];
+  const act={'needs-permission':['Reconnecter le dossier',()=>FS.reconnect()],'paused':['Reprendre',()=>FS.syncStart(true)],'error':['Réessayer',()=>FS.reconnect()]}[FS.status];
+  return h('div',{class:'banner',role:'status',style:'display:flex;gap:12px;align-items:center;flex-wrap:wrap'},h('span',{style:'flex:1;min-width:200px'},msg),h('button',{class:'btn sm',type:'button',onclick:act[1]},act[0]),
+    h('button',{class:'btn sm ghost',type:'button',onclick:()=>go('settings')},'Réglages'));
+}
+function folderPanel(){
+  if(!STANDALONE||!S.store||S.store.mode!=='local')return null;
+  const st=FS.status,fmt=iso=>iso?new Intl.DateTimeFormat('fr-FR',{dateStyle:'short',timeStyle:'medium'}).format(new Date(iso)):'jamais';
+  const where='« Cap Stage »'+(FS.parentName?' dans « '+FS.parentName+' »':'');
+  let body;
+  if(!FS.supported) body=h('p',{class:'hint'},'Votre navigateur ne permet pas d’écrire dans un dossier. Cette fonction marche sur ordinateur avec Chrome, Edge ou un navigateur équivalent. Ailleurs, utilisez l’export de sauvegarde ci-dessus.');
+  else if(st==='off') body=h('div',null,
+    h('p',{class:'hint'},'Choisissez un emplacement : un dossier « Cap Stage » y sera créé automatiquement et vos données y seront enregistrées à chaque modification. Elles survivent à un nettoyage du navigateur, et se synchronisent entre vos appareils si l’emplacement est dans iCloud Drive, OneDrive, Dropbox ou Google Drive.'),
+    h('div',{class:'quick'},h('button',{class:'btn primary',type:'button',onclick:()=>FS.connect()},icon('file',14),'Choisir un emplacement')));
+  else body=h('div',null,
+    h('p',{class:'hint'},st==='ok'?[h('span',{class:'pill ok'},'Actif'),' Dossier '+where+'. Dernière sauvegarde : '+fmt(FS.lastWrite)+'.']:
+      st==='needs-permission'?'En pause : le navigateur demande de réautoriser l’accès au dossier '+where+'. Cela arrive à chaque session, sauf si vous choisissez « Autoriser à chaque visite ».':
+      st==='paused'?'En pause. Dossier '+where+'.':'Erreur : '+(FS.err||'inconnue')+'.'),
+    st==='ok'&&h('p',{class:'hint'},S.store.isLocked()?'Les fichiers du dossier sont chiffrés (cap-stage.chiffre.json).':'Les fichiers du dossier (cap-stage.json et candidatures.csv) sont lisibles par toute personne ayant accès à ce dossier. Activez le mot de passe plus bas pour les chiffrer.'),
+    h('div',{class:'quick'},
+      st==='ok'&&h('button',{class:'btn',type:'button',onclick:async()=>{await FS.writeNow();toast('Dossier à jour.')}},'Enregistrer maintenant'),
+      st==='ok'&&h('button',{class:'btn',type:'button',onclick:()=>FS.syncStart(true)},'Charger depuis le dossier'),
+      st==='needs-permission'&&h('button',{class:'btn primary',type:'button',onclick:()=>FS.reconnect()},'Reconnecter le dossier'),
+      st==='paused'&&h('button',{class:'btn primary',type:'button',onclick:()=>FS.syncStart(true)},'Reprendre'),
+      st==='error'&&h('button',{class:'btn primary',type:'button',onclick:()=>FS.reconnect()},'Réessayer'),
+      h('button',{class:'btn',type:'button',onclick:async()=>{await FS.forget(false);toast('Dossier déconnecté. Les fichiers restent dans le dossier.')}},'Déconnecter')));
+  return h('section',{class:'panel'},h('h2',null,'Sauvegarde automatique dans un dossier'),body);
 }
 function lockPanel(){
   if(!STANDALONE||!(window.crypto&&crypto.subtle)||!S.store||S.store.mode!=='local') return null;
@@ -883,14 +1061,14 @@ function lockPanel(){
   const form=h('form',{class:'lockform',onsubmit:async e=>{e.preventDefault();err.textContent='';
     if(p1.length<8){err.textContent='Choisissez au moins 8 caractères.';return}
     if(p1!==p2){err.textContent='Les deux mots de passe ne correspondent pas.';return}
-    try{await S.store.enableLock(p1);toast('Verrouillage activé. Notez bien votre mot de passe.');renderMain()}catch(x){err.textContent='Impossible d’activer le verrouillage sur cet appareil.'}}},
+    try{await S.store.enableLock(p1);FS.scheduleWrite();toast('Verrouillage activé. Notez bien votre mot de passe.');renderMain()}catch(x){err.textContent='Impossible d’activer le verrouillage sur cet appareil.'}}},
     h('div',{class:'field'},h('label',{for:'lk-1'},'Nouveau mot de passe'),h('input',{class:'input',id:'lk-1',type:'password',autocomplete:'new-password',oninput:e=>p1=e.target.value})),
     h('div',{class:'field'},h('label',{for:'lk-2'},'Confirmer le mot de passe'),h('input',{class:'input',id:'lk-2',type:'password',autocomplete:'new-password',oninput:e=>p2=e.target.value})),
     err,h('div',null,h('button',{class:'btn primary',type:'submit'},icon('lock',14),'Activer le verrouillage')));
   return h('section',{class:'panel'},h('h2',null,'Verrouillage par mot de passe'),
     on?h('div',null,h('p',{class:'hint'},'Activé : vos données sont chiffrées sur cet appareil (AES-256). Le mot de passe est demandé à chaque ouverture.'),
       h('div',{class:'quick'},h('button',{class:'btn',type:'button',onclick:()=>location.reload()},icon('lock',14),'Verrouiller maintenant'),
-        h('button',{class:'btn',type:'button',onclick:async()=>{await S.store.disableLock();toast('Verrouillage désactivé : vos données sont lisibles sans mot de passe.');renderMain()}},'Désactiver')))
+        h('button',{class:'btn',type:'button',onclick:async()=>{await S.store.disableLock();FS.scheduleWrite();toast('Verrouillage désactivé : vos données sont lisibles sans mot de passe.');renderMain()}},'Désactiver')))
     :h('div',null,h('p',{class:'hint'},'Optionnel, utile sur un ordinateur partagé. Vos données sont chiffrées dans le navigateur avec un mot de passe que vous seul connaissez. Si vous l’oubliez, elles sont irrécupérables : exportez une sauvegarde.'),form));
 }
 function viewSettings(){
@@ -901,12 +1079,12 @@ function viewSettings(){
   const file=h('input',{type:'file',id:'imp-file',accept:'.json,application/json',hidden:true,onchange:e=>{const f=e.target.files[0];if(f)importFile(f);e.target.value=''}});
   const canExport=!!S.dl||STANDALONE;
   const data=h('section',{class:'panel'},h('h2',null,'Mes données'),
-    h('p',{class:'hint'},STANDALONE?'Vos candidatures et projets sont enregistrés uniquement dans ce navigateur, sur cet appareil. Ce site n’envoie rien à un serveur et personne d’autre ne peut les lire. Pour les retrouver sur un autre appareil, exportez puis importez une sauvegarde.':'Vos données sont enregistrées dans votre compte Claude, réservées à son propriétaire.'),
+    h('p',{class:'hint'},STANDALONE?'Vos candidatures et projets sont enregistrés uniquement dans ce navigateur, sur cet appareil. Ce site n’envoie rien à un serveur et personne d’autre ne peut les lire. Pour les protéger d’un nettoyage du navigateur ou les retrouver ailleurs, activez la sauvegarde automatique dans un dossier (plus bas) ou exportez puis importez une sauvegarde.':'Vos données sont enregistrées dans votre compte Claude, réservées à son propriétaire.'),
     h('div',{class:'quick'},canExport&&h('button',{class:'btn',type:'button',onclick:exportJson},icon('download',14),'Exporter la sauvegarde (JSON)'),canExport&&h('button',{class:'btn',type:'button',onclick:exportCsv},icon('download',14),'Exporter les candidatures (CSV)'),
       h('button',{class:'btn wr',type:'button',onclick:()=>file.click()},icon('upload',14),'Importer une sauvegarde'),file),
     h('small',{class:'muted'},'Importer remplace les fiches de même identifiant et conserve les autres.'));
-  const wipe=h('section',{class:'panel'},h('h2',null,'Effacer mes données'),h('p',{class:'hint'},'Supprime définitivement toutes vos fiches. Pensez à exporter une sauvegarde avant.'),armed('Tout effacer',wipeAll));
-  return h('div',null,head('Réglages','Vos dates, vos sauvegardes et la protection de vos données.'),h('div',{class:'stack',style:'max-width:760px'},dates,data,lockPanel(),wipe));
+  const wipe=h('section',{class:'panel'},h('h2',null,'Effacer mes données'),h('p',{class:'hint'},'Supprime définitivement toutes vos fiches, y compris les fichiers du dossier de sauvegarde automatique s’il est connecté. Pensez à exporter une sauvegarde avant.'),armed('Tout effacer',wipeAll));
+  return h('div',null,head('Réglages','Vos dates, vos sauvegardes et la protection de vos données.'),h('div',{class:'stack',style:'max-width:760px'},dates,data,folderPanel(),lockPanel(),wipe));
 }
 function viewUnlock(){
   let pw='',busy=false;
@@ -1189,13 +1367,14 @@ async function saveFile(name,data){
   if(!S.dl){blobSave(name,data);return}
   try{await S.dl.save({filename:name,data});toast('Fichier enregistré.')}catch(e){if(!e||e.code!=='declined')toast('Export impossible dans cette vue.')}}
 function exportJson(){saveFile(FILEP+'-sauvegarde-'+today()+'.json',JSON.stringify({app:'cap-stage',version:1,exportedAt:new Date().toISOString(),apps:[...S.apps.values()],projects:[...S.projects.values()],prefs:S.prefs},null,2))}
-function exportCsv(){
+function exportCsv(){saveFile(FILEP+'-candidatures-'+today()+'.csv',csvText())}
+function csvText(){
   const c=v=>{v=v==null?'':String(v);return /[";\n\r]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v};
   const cols=['Entreprise','Statut','Priorité','Stage','Lien de l’offre','Lieu','Durée (mois)','Début souhaité','Gratification (€/mois)','Canal','Envoyée le','Date limite','Prochaine étape','Pour le','Compétences demandées','Données fournies','Projets présentés','Contacts','Notes','Domaines','Compétences clés','Ce qu’ils cherchent vraiment'];
   const rows=[...S.apps.values()].sort((a,b)=>a.company.localeCompare(b.company,'fr')).map(a=>[a.company,STAT_L[a.status],PRIO_L[a.priority],a.title,a.offerUrl,a.location,a.durationMonths,a.startDate,a.pay,a.channel,a.appliedAt,a.deadline,a.nextAction,a.nextDate,
     a.skills.join(', '),a.provided.map(p=>(DOCK_L[p.kind]||'Autre')+(p.label?' ('+p.label+')':'')+(p.date?' '+p.date:'')).join(' | '),
     a.projectIds.map(id=>(S.projects.get(id)||{}).name).filter(Boolean).join(', '),a.contacts.map(x=>[x.name,x.role,x.email].filter(Boolean).join(' - ')).join(' | '),a.notes,a.domains.join(', '),a.keySkills.join(', '),a.realNeed]);
-  saveFile(FILEP+'-candidatures-'+today()+'.csv','﻿'+[cols].concat(rows).map(r=>r.map(c).join(';')).join('\r\n'));
+  return '\ufeff'+[cols].concat(rows).map(r=>r.map(c).join(';')).join('\r\n');
 }
 
 /* ---------- boot ---------- */
