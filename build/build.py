@@ -1,10 +1,17 @@
 import os, re, sys
-# usage: python3 build/build.py OUT_DIR [GOOGLE_CLIENT_ID]
+# usage: python3 build/build.py OUT_DIR [GOOGLE_CLIENT_ID | none]   (sans argument : build/google-client-id.txt)
 # Génère index.html et confidentialite.html à partir de build/source.html.
 # Sans identifiant client Google, la synchronisation Drive est absente et la CSP interdit tout envoi réseau.
 SRC = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'source.html')
 OUT = sys.argv[1]
-GID = sys.argv[2] if len(sys.argv) > 2 else ''
+_here = os.path.dirname(os.path.abspath(__file__))
+if len(sys.argv) > 2:
+    GID = '' if sys.argv[2] == 'none' else sys.argv[2]
+else:
+    try:
+        GID = open(os.path.join(_here, 'google-client-id.txt'), encoding='utf8').read().strip()
+    except OSError:
+        GID = ''
 if GID and not re.fullmatch(r'[0-9]+-[a-z0-9]+\.apps\.googleusercontent\.com', GID) and not GID.startswith('test'):
     print('Identifiant client Google invalide:', GID); sys.exit(1)
 
