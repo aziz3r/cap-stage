@@ -20,6 +20,7 @@ Un outil gratuit pour suivre ses candidatures de stage, sans compte et sans serv
 - **Verrouillage par mot de passe** (optionnel, dans Réglages) : vos données sont chiffrées dans le navigateur (AES-256-GCM, clé dérivée par PBKDF2 avec 310 000 itérations). Si vous perdez le mot de passe, les données sont irrécupérables.
 - **Sauvegarde automatique dans un dossier** (Chrome, Edge et navigateurs équivalents sur ordinateur) : dans Réglages, vous choisissez un emplacement et l'outil y crée un dossier « Cap Stage ». Vos données y sont réécrites à chaque modification (`cap-stage.json`, `candidatures.csv`). Elles survivent à un nettoyage du navigateur, et se synchronisent entre vos appareils si l'emplacement est dans iCloud Drive, OneDrive, Dropbox ou Google Drive. L'outil n'accède qu'à ce dossier, avec votre autorisation, que le navigateur peut redemander à chaque session. Avec le verrouillage par mot de passe, les fichiers sont chiffrés (`cap-stage.chiffre.json`).
 - **Export et import** : Réglages permet aussi d'exporter (JSON, CSV) et d'importer une sauvegarde à la main, sur tous les navigateurs.
+- Le stockage du navigateur est protégé contre l'effacement automatique quand le navigateur l'accepte (`navigator.storage.persist`). La [politique de confidentialité](https://aziz3r.github.io/cap-stage/confidentialite.html) détaille ce qui est enregistré et où.
 - N'y notez ni numéro de sécurité sociale, ni RIB, ni mot de passe : l'outil vous avertit si une saisie y ressemble.
 
 ## Limites

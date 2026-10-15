@@ -6,12 +6,12 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src data:; connect-src 'none'; form-action 'none'; base-uri 'none'; object-src 'none'; frame-src 'none'">
 <meta name="referrer" content="no-referrer">
 <title>Cap Stage – suivi de candidatures de stage</title>
-<meta name="description" content="Suivez vos candidatures de stage : entreprises, compétences demandées, documents envoyés, projets. Gratuit, sans compte, données privées sur votre appareil.">
+<meta name="description" content="Suivez vos candidatures de stage : entreprises, compétences demandées, documents envoyés, projets. Gratuit, sans compte à créer, données privées.">
 <meta name="robots" content="index,follow">
 <meta name="theme-color" content="#EBEFEC">
 <meta property="og:type" content="website">
 <meta property="og:title" content="Cap Stage – suivi de candidatures de stage">
-<meta property="og:description" content="Suivez vos candidatures de stage : entreprises, compétences demandées, documents envoyés, projets. Gratuit, sans compte, données privées sur votre appareil.">
+<meta property="og:description" content="Suivez vos candidatures de stage : entreprises, compétences demandées, documents envoyés, projets. Gratuit, sans compte à créer, données privées.">
 <meta property="og:locale" content="fr_FR">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%2313201C'/%3E%3Cpath d='M9 23L23 9M13 9h10v10' stroke='%23EBEFEC' stroke-width='2.6' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
 <style>:root{color-scheme:light;padding:env(safe-area-inset-top,0px) 0 env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
@@ -510,6 +510,11 @@ async function deriveKey(pw,salt){const km=await crypto.subtle.importKey('raw',n
 async function encJson(key,salt,obj){const iv=crypto.getRandomValues(new Uint8Array(12));const ct=await crypto.subtle.encrypt({name:'AES-GCM',iv},key,new TextEncoder().encode(JSON.stringify(obj)));
   return JSON.stringify({v:1,salt:b64(salt),iv:b64(iv),data:b64(ct)})}
 async function decJson(key,blob){const o=JSON.parse(blob);const pt=await crypto.subtle.decrypt({name:'AES-GCM',iv:unb64(o.iv)},key,unb64(o.data));return JSON.parse(new TextDecoder().decode(pt))}
+let persistAsked=false;
+function requestPersist(){
+  if(persistAsked)return;persistAsked=true;
+  try{if(navigator.storage&&navigator.storage.persist)navigator.storage.persist().then(ok=>{S.persisted=!!ok;requestRender()},()=>{})}catch(e){}
+}
 function localStore(init){
   const mem=(init&&init.mem)||{apps:{},projects:{},settings:{}},subs={apps:[],projects:[],settings:[]};
   let vault=(init&&init.vault)||null,chain=Promise.resolve();
@@ -521,6 +526,7 @@ function localStore(init){
     if(vault){const v=vault;chain=chain.then(async()=>{try{localStorage.setItem(VKEY,await encJson(v.key,v.salt,mem))}catch(e){fail()}})}
     else for(const c of COLS) try{localStorage.setItem('capavril:'+c,JSON.stringify(mem[c]))}catch(e){fail();break}
     if(S.onPersist)S.onPersist();
+    requestPersist();
   };
   window.addEventListener('storage',e=>{
     if(!e.key||e.key.indexOf('capavril:')!==0) return;
@@ -555,7 +561,7 @@ async function unlockVault(pw){
   S.locked=false;document.body.classList.remove('ro');renderSideFoot();attach();renderNav();
 }
 function attach(){
-  if(STANDALONE)S.onReady=()=>FS.init();
+  if(STANDALONE)S.onReady=()=>{FS.init();GD.init()};
   const ready=()=>{if(S.onReady&&S.loaded.apps&&S.loaded.projects&&S.loaded.settings){const f=S.onReady;S.onReady=null;f()}};
   for(const col of COLS){
     S.store.subscribe(col,docs=>{
@@ -660,7 +666,7 @@ function viewOverview(){
     d1!=null&&h('div',null,h('span',{class:'eyebrow'},'Départ visé'),h('b',null,fmtMonth(pr.targetStart)),h('span',{class:'mono'},d1>0?'J-'+d1:'en cours')),
     showEv&&h('div',null,h('span',{class:'eyebrow'},pr.eventLabel),h('b',null,fmtDate(pr.eventDate)),h('span',{class:'mono'},d2===0?"aujourd'hui":'J-'+d2))):
     h('div',{class:'cap'},h('div',null,h('span',{class:'eyebrow'},'Objectif'),h('b',null,'Quand voulez-vous commencer ?'),h('button',{class:'btn sm wr',type:'button',onclick:()=>go('settings')},'Définir mes dates')));
-  const welcome=(STANDALONE&&!apps.length&&!projects.length)?h('div',{class:'banner info'},h('b',null,'Bienvenue. '),'Vos données restent sur cet appareil : ce site n’envoie rien à un serveur. Pensez à exporter une sauvegarde de temps en temps depuis ',h('button',{class:'link',type:'button',onclick:()=>go('settings')},'Réglages'),'.'):null;
+  const welcome=(STANDALONE&&!apps.length&&!projects.length)?h('div',{class:'banner info'},h('b',null,'Bienvenue. '),(GD.available?'Vos données restent sur cet appareil, sauf si vous activez la synchronisation Google Drive. Pensez à la configurer, ou à exporter une sauvegarde de temps en temps, depuis ':'Vos données restent sur cet appareil : ce site n’envoie rien à un serveur. Pensez à exporter une sauvegarde de temps en temps depuis '),h('button',{class:'link',type:'button',onclick:()=>go('settings')},'Réglages'),'.'):null;
   const kpis=h('div',{class:'kpis'},
     [[apps.length,'candidatures suivies'],[sent.length,'envoyées'],[replies.length,rate],[itv.length,'entretiens'],[offers.length,'offres']].map(([n,l])=>h('div',{class:'kpi'},h('b',null,n),h('span',null,l))));
   /* to do */
@@ -867,7 +873,7 @@ function armed(label,fn){const b=h('button',{class:'btn danger wr',type:'button'
   if(!b.classList.contains('armed')){b.classList.add('armed');b.replaceChildren(icon('trash',14),'Confirmer : '+label);setTimeout(()=>{if(b.isConnected){b.classList.remove('armed');b.replaceChildren(icon('trash',14),label)}},4000);return}fn()}},icon('trash',14),label);return b}
 function savePrefs(){const d=Object.assign({},S.prefs);S.rev++;Promise.resolve(S.store.save('settings','prefs',d)).catch(()=>toast('Enregistrement impossible.'))}
 async function wipeAll(){
-  if(STANDALONE){try{await FS.forget(true)}catch(e){}try{Object.keys(localStorage).filter(k=>k.indexOf('capavril:')===0).forEach(k=>localStorage.removeItem(k))}catch(e){}location.reload();return}
+  if(STANDALONE){try{await FS.forget(true)}catch(e){}try{await GD.forget(true)}catch(e){}try{Object.keys(localStorage).filter(k=>k.indexOf('capavril:')===0).forEach(k=>localStorage.removeItem(k))}catch(e){}location.reload();return}
   for(const a of [...S.apps.keys()])await removeDoc('apps',a);for(const p of [...S.projects.keys()])await removeDoc('projects',p);
   try{await S.store.remove('settings','prefs')}catch(e){}toast('Toutes les données ont été effacées.');requestRender();
 }
@@ -934,6 +940,155 @@ const idb={
 };
 const FILES_PLAIN=['cap-stage.json','candidatures.csv','cap-stage.precedent.json'],FILES_ENC=['cap-stage.chiffre.json','cap-stage.precedent.chiffre.json'];
 const sig=(a,p)=>a.concat(p).map(d=>d.id+'@'+d.updatedAt).sort().join('|');
+/* ----- Google Drive sync: the user's own account, private app-data folder ----- */
+const GOOGLE_CLIENT_ID='';
+const GD_SCOPE='https://www.googleapis.com/auth/drive.appdata';
+const GD_API='https://www.googleapis.com/drive/v3/files',GD_UP='https://www.googleapis.com/upload/drive/v3/files';
+const GD={
+  get available(){return !!GOOGLE_CLIENT_ID&&STANDALONE&&!!S.store&&S.store.mode==='local'},
+  get embedded(){return /\bElectron\/|\bClaude\//.test(navigator.userAgent)},
+  status:'off',token:'',tokenExp:0,err:'',lastWrite:'',timer:0,chain:Promise.resolve(),ids:{},lastMode:null,
+  meta(){try{return JSON.parse(localStorage.getItem('capavril:drive')||'{}')}catch(e){return {}}},
+  setMeta(o){try{localStorage.setItem('capavril:drive',JSON.stringify(Object.assign(this.meta(),o)))}catch(e){}},
+  init(){
+    if(!this.available)return;
+    const m=this.meta();if(m.connected){this.lastWrite=m.lastWrite||'';this.status='needs-auth'}
+    requestRender();
+  },
+  lib(){
+    if(window.google&&google.accounts&&google.accounts.oauth2)return Promise.resolve();
+    if(!this._lib)this._lib=new Promise((res,rej)=>{const sc=document.createElement('script');sc.src='https://accounts.google.com/gsi/client';sc.async=true;sc.onload=res;
+      sc.onerror=()=>{this._lib=null;rej(new Error('Google est inaccessible (réseau ou bloqueur de publicités).'))};document.head.append(sc)});
+    return this._lib;
+  },
+  async authorize(){
+    await this.lib();
+    await new Promise((res,rej)=>{
+      const c=google.accounts.oauth2.initTokenClient({client_id:GOOGLE_CLIENT_ID,scope:GD_SCOPE,
+        callback:r=>{if(r&&r.access_token){this.token=r.access_token;this.tokenExp=Date.now()+Math.max(60,(+r.expires_in||3600)-120)*1000;res()}else rej(new Error((r&&r.error)||'refus'))},
+        error_callback:e=>rej(Object.assign(new Error((e&&e.type)||'popup'),{popup:true,type:e&&e.type}))});
+      c.requestAccessToken({prompt:''});
+    });
+  },
+  explain(e){
+    if(e&&e.type==='popup_closed')return '';
+    if(e&&e.type==='popup_failed_to_open')return 'La fenêtre de connexion Google n’a pas pu s’ouvrir. Autorisez les fenêtres surgissantes pour ce site, ou ouvrez-le dans votre navigateur habituel.';
+    if(e&&e.message==='access_denied')return '';
+    return (e&&e.message)||'Connexion à Google impossible.';
+  },
+  async api(url,opt){
+    if(!this.token||Date.now()>this.tokenExp){this.status='needs-auth';requestRender();throw Object.assign(new Error('auth'),{auth:true})}
+    const r=await fetch(url,Object.assign({},opt,{headers:Object.assign({Authorization:'Bearer '+this.token},opt&&opt.headers)}));
+    if(r.status===401){this.token='';this.status='needs-auth';requestRender();throw Object.assign(new Error('auth'),{auth:true})}
+    if(!r.ok)throw Object.assign(new Error('Google Drive a répondu : erreur '+r.status+'.'),{status:r.status});
+    return r;
+  },
+  async find(name){
+    const q=encodeURIComponent("name='"+name+"' and trashed=false");
+    const j=await (await this.api(GD_API+'?spaces=appDataFolder&pageSize=10&fields=files(id,name)&q='+q)).json();
+    const f=(j.files||[])[0]||null;if(f)this.ids[name]=f.id;return f;
+  },
+  async read(){
+    for(const name of ['cap-stage.json','cap-stage.chiffre.json']){
+      const f=await this.find(name);
+      if(f){const text=await (await this.api(GD_API+'/'+f.id+'?alt=media')).text();if(text)return {name,text}}
+    }
+    return null;
+  },
+  async put(name,text){
+    let id=this.ids[name]||((await this.find(name))||{}).id;
+    if(id){
+      try{await this.api(GD_UP+'/'+id+'?uploadType=media',{method:'PATCH',headers:{'Content-Type':'application/json; charset=UTF-8'},body:text});return}
+      catch(e){if(e.status!==404)throw e;delete this.ids[name]}
+    }
+    const b='capstage'+Math.random().toString(36).slice(2);
+    const body='--'+b+'\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n'+JSON.stringify({name,parents:['appDataFolder']})+'\r\n--'+b+'\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n'+text+'\r\n--'+b+'--';
+    const r=await this.api(GD_UP+'?uploadType=multipart&fields=id',{method:'POST',headers:{'Content-Type':'multipart/related; boundary='+b},body});
+    try{this.ids[name]=(await r.json()).id}catch(e){}
+  },
+  async remove(name){try{const f=await this.find(name);if(f){await this.api(GD_API+'/'+f.id,{method:'DELETE'});delete this.ids[name]}}catch(e){}},
+  async connect(){
+    try{await this.authorize()}catch(e){const m=this.explain(e);if(m)toast(m);requestRender();return}
+    this.status='ok';this.err='';this.setMeta({connected:true});
+    try{await this.syncStart(true)}catch(e){if(!(e&&e.auth)){this.status='error';this.err=(e&&e.message)||'Synchronisation impossible.'}}
+    requestRender();
+  },
+  async reconnect(){
+    try{await this.authorize()}catch(e){const m=this.explain(e);if(m)toast(m);return}
+    this.status='ok';this.err='';
+    try{await this.syncStart(false)}catch(e){if(!(e&&e.auth)){this.status='error';this.err=(e&&e.message)||'Synchronisation impossible.'}}
+    requestRender();
+  },
+  async syncStart(first){
+    this.status='ok';
+    const f=await this.read();
+    if(!f){await this.writeNow();if(first)toast('Synchronisation Google Drive activée.');return}
+    const b=await openBackup(f.text);
+    if(!b){this.status='paused';requestRender();return}
+    const la=[...S.apps.values()],lp=[...S.projects.values()];
+    if(!la.length&&!lp.length){this.apply(b);toast('Données chargées depuis Google Drive.');return}
+    if(sig(la,lp)===sig(b.apps,b.projects)){this.lastWrite=b.savedAt||this.lastWrite;this.setMeta({lastWrite:this.lastWrite});return}
+    if(first||(b.savedAt&&b.savedAt>(this.lastWrite||''))){
+      const when=b.savedAt?new Intl.DateTimeFormat('fr-FR',{dateStyle:'long',timeStyle:'short'}).format(new Date(b.savedAt)):'date inconnue';
+      const r=await dialog('Deux jeux de données',h('p',{class:'hint'},'Google Drive contient '+plural(b.apps.length,'candidature','candidatures')+' et '+plural(b.projects.length,'projet','projets')+' (sauvegarde du '+when+'). Ce navigateur en contient '+la.length+' et '+lp.length+'. Lequel garder ?'),
+        [{id:'cancel',label:'Décider plus tard'},{id:'local',label:'Garder ce navigateur'},{id:'drive',label:'Charger Google Drive',primary:true}]);
+      if(r==='drive'){this.apply(b);toast('Données chargées depuis Google Drive.')}
+      else if(r==='local'){await this.writeNow();toast('Google Drive a été mis à jour avec les données de ce navigateur.')}
+      else this.status='paused';
+      requestRender();
+    }else{await this.writeNow()}
+  },
+  apply(b){S.store.replaceAll(b);this.lastWrite=b.savedAt||new Date().toISOString();this.setMeta({lastWrite:this.lastWrite})},
+  scheduleWrite(){if(this.status!=='ok')return;clearTimeout(this.timer);this.timer=setTimeout(()=>{this.timer=0;this.writeNow()},2500)},
+  writeNow(){
+    if(this.status!=='ok'||!S.store||S.store.mode!=='local')return Promise.resolve();
+    this.chain=this.chain.then(()=>this._write()).catch(()=>{});return this.chain;
+  },
+  async _write(){
+    try{
+      const b=S.store.backup(),locked=S.store.isLocked();
+      const name=locked?'cap-stage.chiffre.json':'cap-stage.json';
+      await this.put(name,locked?await S.store.encryptBackup(b):JSON.stringify(b));
+      if(this.lastMode!==locked){await this.remove(locked?'cap-stage.json':'cap-stage.chiffre.json');this.lastMode=locked}
+      this.lastWrite=b.savedAt;this.err='';this.setMeta({lastWrite:this.lastWrite});
+    }catch(e){
+      if(e&&e.auth)this.status='needs-auth';else{this.status='error';this.err=(e&&e.message)||'Écriture impossible.'}
+    }
+    requestRender();
+  },
+  async forget(removeRemote){
+    clearTimeout(this.timer);
+    if(removeRemote&&this.token&&Date.now()<this.tokenExp){await this.remove('cap-stage.json');await this.remove('cap-stage.chiffre.json')}
+    try{if(this.token&&window.google&&google.accounts)google.accounts.oauth2.revoke(this.token,()=>{})}catch(e){}
+    this.token='';this.tokenExp=0;this.ids={};this.lastMode=null;
+    try{localStorage.removeItem('capavril:drive')}catch(e){}
+    this.status='off';this.lastWrite='';requestRender();
+  }
+};
+function drivePanel(){
+  if(!GD.available)return null;
+  const st=GD.status,fmt=iso=>iso?new Intl.DateTimeFormat('fr-FR',{dateStyle:'short',timeStyle:'medium'}).format(new Date(iso)):'jamais';
+  const preload=()=>GD.lib().catch(()=>{});
+  const signIn=(label,fn)=>h('button',{class:'btn primary',type:'button',onpointerenter:preload,onfocus:preload,ontouchstart:preload,onclick:fn},label);
+  let body;
+  if(GD.embedded) body=h('p',{class:'hint'},'La fenêtre de connexion Google ne s’ouvre pas dans le navigateur intégré à l’application Claude. Ouvrez ce site dans Chrome, Safari, Firefox ou Edge pour activer la synchronisation.');
+  else if(st==='off') body=h('div',null,
+    h('p',{class:'hint'},'Connectez votre compte Google pour enregistrer automatiquement vos données dans un espace privé de votre Google Drive, réservé à cette application. Vous les retrouvez sur tous vos appareils et tous vos navigateurs. Le site n’accède à aucun de vos autres fichiers, et son auteur ne voit jamais vos données.'),
+    h('div',{class:'quick'},signIn('Se connecter avec Google',()=>GD.connect())));
+  else body=h('div',null,
+    h('p',{class:'hint'},st==='ok'?[h('span',{class:'pill ok'},'Actif'),' Dernière synchronisation : '+fmt(GD.lastWrite)+'.']:
+      st==='needs-auth'?'En pause : reconnectez-vous à Google pour reprendre (cela arrive environ toutes les heures et à chaque nouvelle session).':
+      st==='paused'?'En pause.':'Erreur : '+(GD.err||'inconnue')+'.'),
+    st==='ok'&&h('p',{class:'hint'},S.store.isLocked()?'Vos données sont chiffrées avant l’envoi : Google ne peut pas les lire.':'Vos données sont enregistrées dans votre Drive, sans chiffrement supplémentaire. Activez le mot de passe plus bas pour qu’elles soient chiffrées avant l’envoi.'),
+    h('div',{class:'quick'},
+      st==='ok'&&h('button',{class:'btn',type:'button',onclick:async()=>{await GD.writeNow();toast('Google Drive à jour.')}},'Synchroniser maintenant'),
+      st==='ok'&&h('button',{class:'btn',type:'button',onclick:()=>GD.syncStart(true).catch(()=>{})},'Charger depuis Google Drive'),
+      st==='needs-auth'&&signIn('Se reconnecter',()=>GD.reconnect()),
+      st==='paused'&&h('button',{class:'btn primary',type:'button',onclick:()=>GD.syncStart(true).catch(()=>{})},'Reprendre'),
+      st==='error'&&signIn('Réessayer',()=>GD.reconnect()),
+      h('button',{class:'btn',type:'button',onclick:async()=>{await GD.forget(false);toast('Google Drive déconnecté. Vos données restent dans votre Drive.')}},'Déconnecter')));
+  return h('section',{class:'panel'},h('h2',null,'Synchronisation Google Drive'),body);
+}
 const FS={
   get supported(){return !this.broken&&!!(window.showDirectoryPicker&&window.indexedDB)&&!/\bElectron\/|\bClaude\//.test(navigator.userAgent)},
   broken:false,handle:null,status:'off',parentName:'',lastWrite:'',err:'',timer:0,chain:Promise.resolve(),lastBackup:0,
@@ -1029,10 +1184,11 @@ const FS={
     this.handle=null;this.status='off';this.lastWrite='';requestRender();
   }
 };
-S.onPersist=()=>FS.scheduleWrite();
+S.onPersist=()=>{FS.scheduleWrite();GD.scheduleWrite()};
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&FS.status==='ok'&&FS.timer){clearTimeout(FS.timer);FS.timer=0;FS.writeNow()}});
 function backupReminder(){
   const n=S.apps.size+S.projects.size;if(!n)return '';
+  if(GD.available&&GD.status!=='off')return '';
   let last=0,snooze=0;try{last=+localStorage.getItem('capavril:lastExport')||0;snooze=+localStorage.getItem('capavril:snooze')||0}catch(e){}
   const now=Date.now();
   if(now<snooze||(last&&now-last<7*864e5)||(!last&&n<3))return '';
@@ -1041,7 +1197,16 @@ function backupReminder(){
     h('button',{class:'btn sm',type:'button',onclick:exportJson},icon('download',14),'Exporter maintenant'),
     h('button',{class:'btn sm ghost',type:'button',onclick:()=>{try{localStorage.setItem('capavril:snooze',String(Date.now()+3*864e5))}catch(e){}renderMain()}},'Plus tard'));
 }
-function fsBanner(){
+function gdBanner(){
+  if(!GD.available||GD.status==='off'||GD.status==='ok')return '';
+  const msg={'needs-auth':'La synchronisation Google Drive est en pause : reconnectez-vous pour la reprendre.','paused':'La synchronisation Google Drive est en pause.','error':'Synchronisation Google Drive impossible : '+(GD.err||'erreur inconnue')+'.'}[GD.status];
+  const act={'needs-auth':['Se reconnecter',()=>GD.reconnect()],'paused':['Reprendre',()=>GD.syncStart(true)],'error':['Réessayer',()=>GD.reconnect()]}[GD.status];
+  return h('div',{class:'banner',role:'status',style:'display:flex;gap:12px;align-items:center;flex-wrap:wrap'},h('span',{style:'flex:1;min-width:200px'},msg),
+    h('button',{class:'btn sm',type:'button',onpointerenter:()=>GD.lib().catch(()=>{}),onfocus:()=>GD.lib().catch(()=>{}),onclick:act[1]},act[0]),
+    h('button',{class:'btn sm ghost',type:'button',onclick:()=>go('settings')},'Réglages'));
+}
+function fsBanner(){const a=fsBannerFolder(),b=gdBanner();return (a||b)?h('div',null,a,b):''}
+function fsBannerFolder(){
   if(!STANDALONE||FS.status==='ok')return '';
   if(FS.status==='off')return backupReminder();
   const msg={'needs-permission':'La sauvegarde automatique est en pause : le navigateur demande de réautoriser l’accès au dossier.','paused':'La sauvegarde automatique est en pause.','error':'Sauvegarde automatique impossible : '+(FS.err||'erreur inconnue')+'.'}[FS.status];
@@ -1102,12 +1267,14 @@ function viewSettings(){
   const file=h('input',{type:'file',id:'imp-file',accept:'.json,application/json',hidden:true,onchange:e=>{const f=e.target.files[0];if(f)importFile(f);e.target.value=''}});
   const canExport=!!S.dl||STANDALONE;
   const data=h('section',{class:'panel'},h('h2',null,'Mes données'),
-    h('p',{class:'hint'},STANDALONE?'Vos candidatures et projets sont enregistrés uniquement dans ce navigateur, sur cet appareil. Ce site n’envoie rien à un serveur et personne d’autre ne peut les lire. Pour les protéger d’un nettoyage du navigateur ou les retrouver ailleurs, activez la sauvegarde automatique dans un dossier (plus bas) ou exportez puis importez une sauvegarde.':'Vos données sont enregistrées dans votre compte Claude, réservées à son propriétaire.'),
+    h('p',{class:'hint'},STANDALONE?'Vos candidatures et projets sont enregistrés dans ce navigateur, sur cet appareil. '+(GD.available?'Ce site n’envoie rien à un serveur, sauf si vous activez la synchronisation Google Drive ci-dessous. ':'Ce site n’envoie rien à un serveur. ')+'Personne d’autre ne peut les lire. Pour les protéger d’un nettoyage du navigateur ou les retrouver ailleurs, activez '+(GD.available?'la synchronisation Google Drive, ':'')+'la sauvegarde automatique dans un dossier (Chrome, Edge) ou exportez puis importez une sauvegarde.':'Vos données sont enregistrées dans votre compte Claude, réservées à son propriétaire.'),
     h('div',{class:'quick'},canExport&&h('button',{class:'btn',type:'button',onclick:exportJson},icon('download',14),'Exporter la sauvegarde (JSON)'),canExport&&h('button',{class:'btn',type:'button',onclick:exportCsv},icon('download',14),'Exporter les candidatures (CSV)'),
       h('button',{class:'btn wr',type:'button',onclick:()=>file.click()},icon('upload',14),'Importer une sauvegarde'),file),
-    h('small',{class:'muted'},'Importer remplace les fiches de même identifiant et conserve les autres.'));
+    h('small',{class:'muted'},'Importer remplace les fiches de même identifiant et conserve les autres.'),
+    STANDALONE&&S.persisted===false?h('p',{class:'hint',style:'margin-top:10px'},'Ce navigateur peut effacer ces données s’il manque de place ou si vous ne visitez pas le site pendant longtemps (Safari : environ 7 jours). Exportez régulièrement une sauvegarde'+(GD.available?' ou activez Google Drive.':'.')):null,
+    STANDALONE?h('p',{class:'hint',style:'margin:10px 0 0'},h('a',{href:'confidentialite.html',target:'_blank',rel:'noopener noreferrer'},'Politique de confidentialité')):null);
   const wipe=h('section',{class:'panel'},h('h2',null,'Effacer mes données'),h('p',{class:'hint'},'Supprime définitivement toutes vos fiches, y compris les fichiers du dossier de sauvegarde automatique s’il est connecté. Pensez à exporter une sauvegarde avant.'),armed('Tout effacer',wipeAll));
-  return h('div',null,head('Réglages','Vos dates, vos sauvegardes et la protection de vos données.'),h('div',{class:'stack',style:'max-width:760px'},dates,data,folderPanel(),lockPanel(),wipe));
+  return h('div',null,head('Réglages','Vos dates, vos sauvegardes et la protection de vos données.'),h('div',{class:'stack',style:'max-width:760px'},dates,data,drivePanel(),folderPanel(),lockPanel(),wipe));
 }
 function viewUnlock(){
   let pw='',busy=false;
@@ -1423,6 +1590,7 @@ async function init(){
     let vaulted=false,blocked=false;
     try{vaulted=!!localStorage.getItem(VKEY)}catch(e){blocked=true}
     try{localStorage.setItem('capavril:t','1');localStorage.removeItem('capavril:t')}catch(e){blocked=true}
+    try{navigator.storage.persisted().then(v=>{S.persisted=v;requestRender()},()=>{})}catch(e){}
     if(blocked)S.note='Le stockage du navigateur est bloqué (navigation privée ?) : vos données seront perdues à la fermeture de la page. Exportez régulièrement une sauvegarde.';
     if(vaulted){S.locked='vault';document.body.classList.add('ro');renderNav();renderMain();return}
   }
