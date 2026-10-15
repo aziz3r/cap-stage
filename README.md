@@ -25,7 +25,7 @@ Un outil gratuit pour suivre ses candidatures de stage, sans compte et sans serv
 ## Limites
 
 - Pas de synchronisation directe entre appareils : utilisez un dossier synchronisé (voir plus haut) ou l'export puis l'import. Deux appareils qui modifient en même temps le même dossier peuvent s'écraser : l'outil demande quel jeu de données garder quand il détecte une différence.
-- La sauvegarde dans un dossier n'existe pas sur Safari, Firefox ni sur mobile : l'export et l'import y restent disponibles.
+- La sauvegarde dans un dossier n'existe pas sur Safari, Firefox, sur mobile, ni dans le navigateur intégré à l'application Claude (le sélecteur de dossier n'y fonctionne pas). L'outil le détecte et l'explique ; l'export et l'import restent disponibles, avec un rappel d'export régulier.
 - Effacer les données du site dans le navigateur supprime vos fiches. Exportez régulièrement.
 
 ## Développement

@@ -935,8 +935,8 @@ const idb={
 const FILES_PLAIN=['cap-stage.json','candidatures.csv','cap-stage.precedent.json'],FILES_ENC=['cap-stage.chiffre.json','cap-stage.precedent.chiffre.json'];
 const sig=(a,p)=>a.concat(p).map(d=>d.id+'@'+d.updatedAt).sort().join('|');
 const FS={
-  get supported(){return !!(window.showDirectoryPicker&&window.indexedDB)},
-  handle:null,status:'off',parentName:'',lastWrite:'',err:'',timer:0,chain:Promise.resolve(),lastBackup:0,
+  get supported(){return !this.broken&&!!(window.showDirectoryPicker&&window.indexedDB)&&!/\bElectron\/|\bClaude\//.test(navigator.userAgent)},
+  broken:false,handle:null,status:'off',parentName:'',lastWrite:'',err:'',timer:0,chain:Promise.resolve(),lastBackup:0,
   meta(){try{return JSON.parse(localStorage.getItem('capavril:folder')||'{}')}catch(e){return {}}},
   setMeta(o){try{localStorage.setItem('capavril:folder',JSON.stringify(Object.assign(this.meta(),o)))}catch(e){}},
   async init(){
@@ -949,7 +949,14 @@ const FS={
     requestRender();
   },
   async connect(){
-    let parent;try{parent=await window.showDirectoryPicker({id:'cap-stage',mode:'readwrite',startIn:'documents'})}catch(e){return}
+    let parent;const t0=Date.now();
+    try{parent=await window.showDirectoryPicker({id:'cap-stage',mode:'readwrite',startIn:'documents'})}
+    catch(e){
+      if(e&&e.name==='AbortError'&&Date.now()-t0>=800)return;
+      this.broken=true;requestRender();
+      toast('Ce navigateur n’ouvre pas le sélecteur de dossier. Ouvrez le site dans Chrome ou Edge sur ordinateur.');
+      return;
+    }
     try{
       const dir=await parent.getDirectoryHandle('Cap Stage',{create:true});
       this.handle=dir;this.parentName=parent.name;
@@ -1024,8 +1031,19 @@ const FS={
 };
 S.onPersist=()=>FS.scheduleWrite();
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&FS.status==='ok'&&FS.timer){clearTimeout(FS.timer);FS.timer=0;FS.writeNow()}});
+function backupReminder(){
+  const n=S.apps.size+S.projects.size;if(!n)return '';
+  let last=0,snooze=0;try{last=+localStorage.getItem('capavril:lastExport')||0;snooze=+localStorage.getItem('capavril:snooze')||0}catch(e){}
+  const now=Date.now();
+  if(now<snooze||(last&&now-last<7*864e5)||(!last&&n<3))return '';
+  return h('div',{class:'banner info',role:'status',style:'display:flex;gap:12px;align-items:center;flex-wrap:wrap'},
+    h('span',{style:'flex:1;min-width:200px'},(last?'Dernière sauvegarde exportée il y a '+Math.round((now-last)/864e5)+' jours.':'Vous n’avez encore exporté aucune sauvegarde.')+' Vos données ne vivent que dans ce navigateur.'),
+    h('button',{class:'btn sm',type:'button',onclick:exportJson},icon('download',14),'Exporter maintenant'),
+    h('button',{class:'btn sm ghost',type:'button',onclick:()=>{try{localStorage.setItem('capavril:snooze',String(Date.now()+3*864e5))}catch(e){}renderMain()}},'Plus tard'));
+}
 function fsBanner(){
-  if(!STANDALONE||FS.status==='ok'||FS.status==='off')return '';
+  if(!STANDALONE||FS.status==='ok')return '';
+  if(FS.status==='off')return backupReminder();
   const msg={'needs-permission':'La sauvegarde automatique est en pause : le navigateur demande de réautoriser l’accès au dossier.','paused':'La sauvegarde automatique est en pause.','error':'Sauvegarde automatique impossible : '+(FS.err||'erreur inconnue')+'.'}[FS.status];
   const act={'needs-permission':['Reconnecter le dossier',()=>FS.reconnect()],'paused':['Reprendre',()=>FS.syncStart(true)],'error':['Réessayer',()=>FS.reconnect()]}[FS.status];
   return h('div',{class:'banner',role:'status',style:'display:flex;gap:12px;align-items:center;flex-wrap:wrap'},h('span',{style:'flex:1;min-width:200px'},msg),h('button',{class:'btn sm',type:'button',onclick:act[1]},act[0]),
@@ -1036,7 +1054,12 @@ function folderPanel(){
   const st=FS.status,fmt=iso=>iso?new Intl.DateTimeFormat('fr-FR',{dateStyle:'short',timeStyle:'medium'}).format(new Date(iso)):'jamais';
   const where='« Cap Stage »'+(FS.parentName?' dans « '+FS.parentName+' »':'');
   let body;
-  if(!FS.supported) body=h('p',{class:'hint'},'Votre navigateur ne permet pas d’écrire dans un dossier. Cette fonction marche sur ordinateur avec Chrome, Edge ou un navigateur équivalent. Ailleurs, utilisez l’export de sauvegarde ci-dessus.');
+  if(!FS.supported){
+    const url=location.origin+location.pathname;
+    body=h('div',null,h('p',{class:'hint'},'Ce navigateur ne permet pas de choisir un dossier. C’est le cas de Safari, de Firefox, des téléphones et du navigateur intégré à l’application Claude. Pour activer la sauvegarde automatique, ouvrez ce site dans Chrome ou Edge sur ordinateur. En attendant, exportez régulièrement une sauvegarde.'),
+      h('div',{class:'quick'},h('code',{class:'chip',style:'user-select:all'},url),
+        h('button',{class:'btn sm',type:'button',onclick:async()=>{try{await navigator.clipboard.writeText(url);toast('Lien copié.')}catch(e){toast('Copiez le lien affiché ci-dessus.')}}},'Copier le lien')));
+  }
   else if(st==='off') body=h('div',null,
     h('p',{class:'hint'},'Choisissez un emplacement : un dossier « Cap Stage » y sera créé automatiquement et vos données y seront enregistrées à chaque modification. Elles survivent à un nettoyage du navigateur, et se synchronisent entre vos appareils si l’emplacement est dans iCloud Drive, OneDrive, Dropbox ou Google Drive.'),
     h('div',{class:'quick'},h('button',{class:'btn primary',type:'button',onclick:()=>FS.connect()},icon('file',14),'Choisir un emplacement')));
@@ -1366,7 +1389,7 @@ function blobSave(name,data){const type=/\.csv$/.test(name)?'text/csv;charset=ut
 async function saveFile(name,data){
   if(!S.dl){blobSave(name,data);return}
   try{await S.dl.save({filename:name,data});toast('Fichier enregistré.')}catch(e){if(!e||e.code!=='declined')toast('Export impossible dans cette vue.')}}
-function exportJson(){saveFile(FILEP+'-sauvegarde-'+today()+'.json',JSON.stringify({app:'cap-stage',version:1,exportedAt:new Date().toISOString(),apps:[...S.apps.values()],projects:[...S.projects.values()],prefs:S.prefs},null,2))}
+function exportJson(){try{localStorage.setItem('capavril:lastExport',String(Date.now()))}catch(e){}requestRender();saveFile(FILEP+'-sauvegarde-'+today()+'.json',JSON.stringify({app:'cap-stage',version:1,exportedAt:new Date().toISOString(),apps:[...S.apps.values()],projects:[...S.projects.values()],prefs:S.prefs},null,2))}
 function exportCsv(){saveFile(FILEP+'-candidatures-'+today()+'.csv',csvText())}
 function csvText(){
   const c=v=>{v=v==null?'':String(v);return /[";\n\r]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v};
