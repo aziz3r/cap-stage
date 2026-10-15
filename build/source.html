@@ -1,0 +1,1595 @@
+<title>Cap Avril</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500..800&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Concept: poste de pilotage. Barre latérale de navigation + grand espace de travail ;
+   chaque fiche (candidature, projet) s'ouvre dans un tiroir à droite. Gris froids teintés de vert,
+   un seul accent cobalt, les états du dossier portés par de petites pastilles. */
+:root{
+  --font-display:"Bricolage Grotesque","Avenir Next","Segoe UI",system-ui,sans-serif;
+  --font-body:"IBM Plex Sans","Segoe UI",system-ui,-apple-system,sans-serif;
+  --font-mono:"IBM Plex Mono",ui-monospace,"SF Mono",Menlo,monospace;
+  --bg:#EBEFEC; --surface:#FFFFFF; --surface-2:#F4F7F5; --ink:#13201C; --ink-2:#465650; --ink-3:#6C7B75;
+  --line:#D5DCD7; --line-2:#E4E9E5; --accent:#2447C6; --accent-ink:#FFFFFF;
+  --ok:#1D7A4E; --warn:#B85A0B; --bad:#B3342E; --scrim:rgba(12,20,17,.46);
+  --st-todo:#66766F; --st-sent:#2447C6; --st-contact:#0C7686; --st-interview:#7646BE;
+  --st-offer:#A8700A; --st-accepted:#1D7A4E; --st-rejected:#B3342E; --st-withdrawn:#8A918E;
+  --shadow:0 1px 2px rgba(19,32,28,.06),0 4px 14px rgba(19,32,28,.06);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#0C1311; --surface:#141C19; --surface-2:#101714; --ink:#E5ECE8; --ink-2:#AEBBB5; --ink-3:#86958F;
+    --line:#27322E; --line-2:#1E2825; --accent:#7C98FF; --accent-ink:#0A1230;
+    --ok:#4FC38A; --warn:#F0963F; --bad:#F27A72; --scrim:rgba(0,0,0,.6);
+    --st-todo:#9AA9A3; --st-sent:#7C98FF; --st-contact:#4CC3D3; --st-interview:#B393F0;
+    --st-offer:#E4B04D; --st-accepted:#4FC38A; --st-rejected:#F27A72; --st-withdrawn:#8C9591;
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 6px 18px rgba(0,0,0,.35); color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0C1311; --surface:#141C19; --surface-2:#101714; --ink:#E5ECE8; --ink-2:#AEBBB5; --ink-3:#86958F;
+  --line:#27322E; --line-2:#1E2825; --accent:#7C98FF; --accent-ink:#0A1230;
+  --ok:#4FC38A; --warn:#F0963F; --bad:#F27A72; --scrim:rgba(0,0,0,.6);
+  --st-todo:#9AA9A3; --st-sent:#7C98FF; --st-contact:#4CC3D3; --st-interview:#B393F0;
+  --st-offer:#E4B04D; --st-accepted:#4FC38A; --st-rejected:#F27A72; --st-withdrawn:#8C9591;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 6px 18px rgba(0,0,0,.35); color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{min-height:100%}
+body{background:var(--bg);color:var(--ink);font:14px/1.5 var(--font-body);-webkit-text-size-adjust:100%}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+a{color:var(--accent)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+[data-st]{--c:var(--st-todo)}
+[data-st="sent"]{--c:var(--st-sent)} [data-st="contact"]{--c:var(--st-contact)} [data-st="interview"]{--c:var(--st-interview)}
+[data-st="offer"]{--c:var(--st-offer)} [data-st="accepted"]{--c:var(--st-accepted)} [data-st="rejected"]{--c:var(--st-rejected)}
+[data-st="withdrawn"]{--c:var(--st-withdrawn)}
+.mono{font-family:var(--font-mono);font-variant-numeric:tabular-nums}
+.muted{color:var(--ink-3)}
+.ic{display:inline-flex;vertical-align:-3px;flex:none}
+
+/* shell */
+.app{display:grid;grid-template-columns:236px minmax(0,1fr);min-height:100vh}
+.side{position:sticky;top:env(safe-area-inset-top,0px);align-self:start;max-height:100vh;overflow:auto;padding:20px 14px;display:flex;flex-direction:column;gap:18px;border-right:1px solid var(--line)}
+.brand{display:flex;align-items:center;gap:10px;padding:0 6px}
+.brand .mark{width:30px;height:30px;border-radius:8px;background:var(--ink);color:var(--bg);display:grid;place-items:center}
+.brand b{display:block;font:700 18px/1.1 var(--font-display);letter-spacing:-.01em}
+.brand small{color:var(--ink-3);font-size:12px}
+#nav{display:flex;flex-direction:column;gap:2px}
+.nav-i{display:flex;align-items:center;gap:10px;width:100%;padding:8px 10px;border:0;border-radius:8px;background:none;color:var(--ink-2);text-align:left}
+.nav-i:hover{background:var(--surface-2);color:var(--ink)}
+.nav-i[aria-current="page"]{background:var(--surface);color:var(--ink);font-weight:600;box-shadow:var(--shadow)}
+.nav-i .n{margin-left:auto;font:500 12px var(--font-mono);color:var(--ink-3)}
+.side-foot{margin-top:auto;display:flex;flex-direction:column;gap:8px;font-size:12px;color:var(--ink-3)}
+.main{padding:28px clamp(16px,3vw,40px) 64px;min-width:0}
+.head{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:20px}
+.head h1{margin:0;font:700 30px/1.1 var(--font-display);letter-spacing:-.02em;text-wrap:balance}
+.head p{margin:4px 0 0;color:var(--ink-2)}
+.head .acts{display:flex;gap:8px;flex-wrap:wrap}
+
+/* controls */
+.btn{display:inline-flex;align-items:center;gap:7px;padding:7px 13px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink);font-weight:500;white-space:nowrap}
+.btn:hover{border-color:var(--ink-3)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.primary:hover{filter:brightness(1.08)}
+.btn.sm{padding:4px 9px;font-size:13px}
+.btn.ghost{border-color:transparent;background:none;color:var(--ink-2)}
+.btn.ghost:hover{background:var(--surface-2);color:var(--ink)}
+.btn.danger{color:var(--bad);border-color:color-mix(in srgb,var(--bad) 40%,var(--line))}
+.btn.danger.armed{background:var(--bad);border-color:var(--bad);color:#fff}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.input,.select,.textarea{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink)}
+.input::placeholder,.textarea::placeholder{color:var(--ink-3)}
+.textarea{min-height:88px;resize:vertical;line-height:1.5}
+.select{appearance:none;padding-right:28px;background-image:linear-gradient(45deg,transparent 50%,var(--ink-3) 50%),linear-gradient(135deg,var(--ink-3) 50%,transparent 50%);background-position:calc(100% - 15px) 55%,calc(100% - 10px) 55%;background-size:5px 5px;background-repeat:no-repeat}
+.input:disabled,.select:disabled,.textarea:disabled{background:var(--surface-2);color:var(--ink-2)}
+.toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:16px}
+.toolbar .grow{flex:1 1 220px;min-width:180px;position:relative}
+.toolbar .grow .input{padding-left:32px}
+.toolbar .grow .ic{position:absolute;left:10px;top:9px;color:var(--ink-3)}
+.toolbar .select{width:auto;min-width:130px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--surface)}
+.seg button{border:0;background:none;padding:6px 10px;color:var(--ink-2);display:inline-flex;gap:6px;align-items:center}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+.toggle{display:inline-flex;align-items:center;gap:6px;padding:6px 11px;border:1px solid var(--line);border-radius:999px;background:var(--surface);color:var(--ink-2)}
+.toggle[aria-pressed="true"]{border-color:var(--warn);color:var(--warn);background:color-mix(in srgb,var(--warn) 10%,var(--surface))}
+
+/* pills, bars */
+.pill{display:inline-flex;align-items:center;gap:6px;padding:2px 9px;border-radius:999px;font-size:12px;font-weight:600;white-space:nowrap;color:color-mix(in srgb,var(--c) 78%,var(--ink));background:color-mix(in srgb,var(--c) 14%,var(--surface));border:1px solid color-mix(in srgb,var(--c) 32%,var(--surface))}
+.pill.flag{--c:var(--warn)}
+.pill.ok{--c:var(--ok)}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--c);flex:none}
+.prio{display:inline-flex;align-items:flex-end;gap:2px;height:12px}
+.prio i{width:3px;border-radius:1px;background:var(--line)}
+.prio i:nth-child(1){height:5px}.prio i:nth-child(2){height:8px}.prio i:nth-child(3){height:12px}
+.prio[data-p="high"] i,.prio[data-p="mid"] i:nth-child(-n+2),.prio[data-p="low"] i:nth-child(1){background:var(--ink)}
+.eyebrow{font:500 11px var(--font-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{display:inline-flex;align-items:center;gap:5px;padding:2px 8px;border-radius:6px;background:var(--surface-2);border:1px solid var(--line);font:500 12px var(--font-mono);color:var(--ink-2)}
+.chip.ok{border-color:color-mix(in srgb,var(--ok) 45%,var(--line));color:var(--ok);background:color-mix(in srgb,var(--ok) 9%,var(--surface))}
+.chip.gap{border-color:color-mix(in srgb,var(--warn) 45%,var(--line));color:var(--warn);background:color-mix(in srgb,var(--warn) 9%,var(--surface))}
+button.chip{cursor:pointer}
+.meter{height:4px;border-radius:2px;background:var(--line);overflow:hidden}
+.meter>span{display:block;height:100%;background:var(--ok)}
+
+/* generic blocks */
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:18px}
+.panel h2{margin:0 0 12px;font:650 16px/1.2 var(--font-display);letter-spacing:-.005em;display:flex;align-items:center;justify-content:space-between;gap:10px}
+.panel h2 a,.panel h2 button.link{font:500 13px var(--font-body)}
+button.link{border:0;background:none;color:var(--accent);padding:0;text-decoration:underline;text-underline-offset:2px}
+.grid-2{display:grid;grid-template-columns:minmax(0,3fr) minmax(0,2fr);gap:16px;align-items:start}
+.stack{display:flex;flex-direction:column;gap:16px}
+.empty{padding:28px 20px;border:1.5px dashed var(--line);border-radius:12px;text-align:center;color:var(--ink-2);display:flex;flex-direction:column;align-items:center;gap:10px}
+.empty b{font:650 17px var(--font-display);color:var(--ink)}
+.empty p{margin:0;max-width:46ch}
+.empty.sm{padding:16px 14px;font-size:13px}
+.banner{padding:10px 14px;margin-bottom:16px;border-radius:10px;border:1px solid color-mix(in srgb,var(--warn) 45%,var(--line));background:color-mix(in srgb,var(--warn) 9%,var(--surface));color:var(--ink)}
+
+/* overview */
+.cap{display:flex;gap:28px;flex-wrap:wrap;padding:14px 18px;margin-bottom:16px;background:var(--ink);color:var(--bg);border-radius:12px}
+.cap>div{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.cap .eyebrow{color:color-mix(in srgb,var(--bg) 65%,var(--ink))}
+.cap b{font:650 17px var(--font-display)}
+.cap .mono{padding:1px 8px;border-radius:6px;background:color-mix(in srgb,var(--bg) 16%,var(--ink));font-size:13px}
+.kpis{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));margin-bottom:16px;background:var(--surface);border:1px solid var(--line);border-radius:12px}
+.kpi{padding:14px 18px;border-left:1px solid var(--line-2)}
+.kpi:first-child{border-left:0}
+.kpi b{display:block;font:700 30px/1.1 var(--font-display);letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.kpi span{color:var(--ink-3);font-size:12.5px}
+.todo{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+.todo li button{display:flex;gap:12px;align-items:center;width:100%;padding:10px 4px;border:0;border-top:1px solid var(--line-2);background:none;text-align:left}
+.todo li:first-child button{border-top:0}
+.todo li button:hover{background:var(--surface-2)}
+.todo .when{flex:none;width:76px;font:500 12px var(--font-mono);color:var(--ink-3)}
+.todo .when.late{color:var(--warn)}
+.todo .what{min-width:0;flex:1}
+.todo .what b{display:block;font-weight:600}
+.todo .what small{color:var(--ink-3)}
+.bar{display:flex;height:30px;border-radius:8px;overflow:hidden;gap:2px;background:var(--surface-2)}
+.bar span{display:grid;place-items:center;min-width:26px;background:color-mix(in srgb,var(--c) 22%,var(--surface));color:color-mix(in srgb,var(--c) 80%,var(--ink));font:600 12px var(--font-mono)}
+.bar.empty-bar{border:1px dashed var(--line);background:none}
+.legend{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px 14px;margin:12px 0 0;padding:0;list-style:none;font-size:13px}
+.legend li{display:flex;align-items:center;gap:7px}
+.legend .n{margin-left:auto;font:500 12px var(--font-mono);color:var(--ink-3)}
+.steps{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
+.steps li{display:flex;gap:10px;align-items:flex-start}
+.steps .box{flex:none;width:20px;height:20px;border-radius:6px;border:1.5px solid var(--line);display:grid;place-items:center;color:var(--accent-ink)}
+.steps li.done .box{background:var(--ok);border-color:var(--ok)}
+.steps li.done span.t{color:var(--ink-3);text-decoration:line-through}
+.skill-line{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:5px 10px;padding:7px 0}
+.skill-line .meter{height:6px;grid-column:1/-1;grid-row:2}
+.skill-line .mono{overflow-wrap:anywhere}
+.feed{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+.feed li{display:flex;gap:12px;padding:8px 0;border-top:1px solid var(--line-2);font-size:13px}
+.feed li:first-child{border-top:0}
+.feed .d{flex:none;width:76px;font:500 12px var(--font-mono);color:var(--ink-3)}
+.feed button{border:0;background:none;padding:0;font-weight:600;text-align:left}
+.feed button:hover{text-decoration:underline}
+
+/* board */
+.board{display:flex;gap:12px;overflow-x:auto;padding-bottom:12px;align-items:flex-start}
+.col{flex:1 0 230px;max-width:320px;background:var(--surface-2);border:1px solid var(--line-2);border-radius:12px;padding:10px;display:flex;flex-direction:column;gap:8px;min-height:120px}
+.col.over{outline:2px dashed var(--accent);outline-offset:-2px}
+.col-h{display:flex;align-items:center;gap:8px;padding:2px 4px 4px;font-weight:600}
+.col-h .n{margin-left:auto;font:500 12px var(--font-mono);color:var(--ink-3)}
+.col-empty{padding:14px 6px;text-align:center;color:var(--ink-3);font-size:12.5px}
+.acard{background:var(--surface);border:1px solid var(--line);border-radius:9px;padding:10px 11px;display:flex;flex-direction:column;gap:6px;cursor:pointer;box-shadow:0 1px 0 rgba(0,0,0,.02)}
+.acard:hover{box-shadow:var(--shadow);border-color:var(--ink-3)}
+.acard.drag{opacity:.45}
+.ac-top{display:flex;justify-content:space-between;gap:8px;align-items:center}
+.ac-co{font-weight:650;overflow-wrap:anywhere}
+.ac-title{color:var(--ink-2);font-size:13px;overflow-wrap:anywhere}
+.ac-meta{display:flex;flex-wrap:wrap;gap:4px 10px;color:var(--ink-3);font-size:12px}
+.ac-badges{display:flex;flex-wrap:wrap;gap:5px}
+.ac-cov{display:flex;align-items:center;gap:8px;font:500 11.5px var(--font-mono);color:var(--ink-3)}
+.ac-cov .meter{flex:1}
+.tblwrap{overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:12px}
+table.tbl{width:100%;border-collapse:collapse;min-width:760px}
+.tbl th{position:sticky;top:0;text-align:left;font:500 11px var(--font-mono);letter-spacing:.05em;text-transform:uppercase;color:var(--ink-3);padding:10px 12px;border-bottom:1px solid var(--line);background:var(--surface-2);white-space:nowrap}
+.tbl td{padding:10px 12px;border-top:1px solid var(--line-2);vertical-align:top}
+.tbl tbody tr{cursor:pointer}
+.tbl tbody tr:hover td{background:var(--surface-2)}
+.tbl td b{font-weight:650}
+.tbl td small{display:block;color:var(--ink-3)}
+.tbl .select{padding:3px 24px 3px 8px;font-size:12.5px;border-radius:999px;font-weight:600;color:color-mix(in srgb,var(--c) 78%,var(--ink));background-color:color-mix(in srgb,var(--c) 14%,var(--surface));border-color:color-mix(in srgb,var(--c) 32%,var(--surface))}
+.tbl td.c{text-align:center}
+.tbl .yes{color:var(--ok);font-weight:600}
+.tbl .no{color:var(--line)}
+
+/* projects & skills */
+.pgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:14px}
+.pcard{display:flex;flex-direction:column;gap:9px;padding:16px;background:var(--surface);border:1px solid var(--line);border-radius:12px;cursor:pointer;text-align:left}
+.pcard:hover{box-shadow:var(--shadow);border-color:var(--ink-3)}
+.pcard h3{margin:0;font:650 17px/1.2 var(--font-display)}
+.pcard p{margin:0;color:var(--ink-2);display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.pcard .foot{margin-top:auto;color:var(--ink-3);font-size:12.5px;display:flex;justify-content:space-between;gap:8px}
+.sk-row{display:grid;grid-template-columns:minmax(150px,1.1fr) 150px minmax(180px,1.4fr) minmax(160px,1.2fr);gap:14px;align-items:center;padding:10px 14px;border-top:1px solid var(--line-2)}
+.sk-row:first-child{border-top:0}
+.sk-row.hd{font:500 11px var(--font-mono);letter-spacing:.05em;text-transform:uppercase;color:var(--ink-3);background:var(--surface-2);border-bottom:1px solid var(--line)}
+.sk-dem{display:flex;align-items:center;gap:8px}
+.sk-dem .meter{flex:1;height:6px}
+
+/* drawer + modal */
+.scrim{position:fixed;inset:0;background:var(--scrim);z-index:40}
+.drawer{position:fixed;top:0;right:0;bottom:0;z-index:41;width:min(700px,100%);background:var(--surface);border-left:1px solid var(--line);display:flex;flex-direction:column;box-shadow:-12px 0 40px rgba(0,0,0,.18)}
+.dhead{padding:calc(14px + env(safe-area-inset-top,0px)) 18px 12px;border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:10px}
+.dhead .row1{display:flex;gap:10px;align-items:center}
+.title-in{flex:1;min-width:0;border:0;border-bottom:1.5px solid transparent;background:none;padding:2px 0;font:700 24px/1.2 var(--font-display);letter-spacing:-.015em;color:var(--ink)}
+.title-in:hover,.title-in:focus{border-bottom-color:var(--line);outline:0}
+.title-in::placeholder{color:var(--ink-3)}
+.dhead .row2{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.dhead .row2 .select{width:auto}
+.save{margin-left:auto;font:500 12px var(--font-mono);color:var(--ink-3)}
+.save.err{color:var(--bad)}
+.jump{display:flex;gap:6px;overflow-x:auto;padding:10px 18px;border-bottom:1px solid var(--line-2);scrollbar-width:thin}
+.jump button{border:0;background:none;padding:3px 9px;border-radius:999px;color:var(--ink-2);white-space:nowrap}
+.jump button:hover{background:var(--surface-2);color:var(--ink)}
+.dbody{flex:1;overflow-y:auto;padding:6px 18px 24px}
+.dfoot{padding:12px 18px calc(12px + env(safe-area-inset-bottom,0px));border-top:1px solid var(--line);display:flex;justify-content:space-between;gap:8px;align-items:center}
+.sec{padding:18px 0 4px;border-bottom:1px solid var(--line-2);scroll-margin-top:8px}
+.sec:last-child{border-bottom:0}
+.sec>header{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:12px;flex-wrap:wrap}
+.sec h3{margin:0;font:650 16px var(--font-display)}
+.sec>header small{color:var(--ink-3)}
+.fgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-bottom:14px}
+.field{display:flex;flex-direction:column;gap:4px;min-width:0}
+.field.wide{grid-column:1/-1}
+.field label{font-size:12.5px;font-weight:500;color:var(--ink-2)}
+.field small{color:var(--ink-3);font-size:12px}
+.tags{display:flex;flex-wrap:wrap;gap:6px;padding:6px;border:1px solid var(--line);border-radius:8px;background:var(--surface);min-height:42px;align-items:center}
+.tags:focus-within{outline:2px solid var(--accent);outline-offset:1px}
+.tags .chip button{border:0;background:none;padding:0;color:inherit;line-height:1;display:inline-flex}
+.tag-in{flex:1;min-width:140px;border:0;background:none;padding:3px 4px;outline:0}
+.rowc{border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:8px;background:var(--surface-2);display:flex;flex-direction:column;gap:8px}
+.rl{display:grid;gap:8px;align-items:center}
+.rl.a{grid-template-columns:170px minmax(0,1fr) 36px}
+.rl.b{grid-template-columns:150px minmax(0,1fr) minmax(0,1fr)}
+.rl.c{grid-template-columns:repeat(3,minmax(0,1fr))}
+.rl.d{grid-template-columns:150px minmax(0,1fr)}
+.quick{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+.addbar{display:grid;grid-template-columns:150px 150px minmax(0,1fr) auto;gap:8px;margin-bottom:12px}
+.evl{list-style:none;margin:0;padding:0}
+.evl li{display:grid;grid-template-columns:128px 118px minmax(0,1fr) 36px;gap:8px;align-items:center;padding:5px 0;border-top:1px solid var(--line-2)}
+.evl li:first-child{border-top:0}
+.xbtn{border:0;background:none;color:var(--ink-3);width:32px;height:32px;border-radius:8px;display:grid;place-items:center}
+.xbtn:hover{background:var(--surface);color:var(--bad)}
+.ppick{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+.ppick button{display:inline-flex;gap:6px;align-items:center;padding:5px 11px;border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--ink-2)}
+.ppick button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.hint{color:var(--ink-3);font-size:13px;margin:0 0 10px}
+.modal{position:fixed;z-index:51;left:50%;top:max(8vh,24px);transform:translateX(-50%);width:min(480px,calc(100% - 32px));background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:20px;box-shadow:0 20px 60px rgba(0,0,0,.28);display:flex;flex-direction:column;gap:14px}
+.modal h2{margin:0;font:700 20px var(--font-display)}
+.modal .fgrid{margin:0}
+.modal .acts{display:flex;justify-content:flex-end;gap:8px}
+.scrim.top{z-index:50}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:60;background:var(--ink);color:var(--bg);padding:9px 16px;border-radius:10px;box-shadow:var(--shadow);max-width:calc(100% - 32px)}
+.chip.key{font-weight:600;border-width:1.5px}
+.chip.dom{border-color:color-mix(in srgb,var(--accent) 40%,var(--line));color:var(--accent);background:color-mix(in srgb,var(--accent) 8%,var(--surface))}
+.tags .chip button.star{color:var(--ink-3)}
+.tags .chip.key button.star{color:var(--warn)}
+.chip .ic{color:var(--warn)}
+.sec.brief{background:var(--surface-2);margin:12px -18px 0;padding:18px;border-bottom:1px solid var(--line)}
+.bf-head{display:flex;flex-direction:column;gap:8px;margin-bottom:14px}
+.bf-head .t{font:650 18px/1.3 var(--font-display)}
+.bf-head .s{color:var(--ink-2)}
+.bf-need{margin:0;padding:12px 14px;background:var(--surface);border:1px solid var(--line);border-radius:10px;font-size:15px;line-height:1.55;white-space:pre-wrap;overflow-wrap:anywhere}
+.bf-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px 22px;margin-top:18px}
+.bf-b{display:flex;flex-direction:column;gap:6px;min-width:0}
+.bf-b.wide{grid-column:1/-1}
+.bf-b p{margin:0;white-space:pre-wrap;overflow-wrap:anywhere}
+.bf-empty{align-self:flex-start;border:1px dashed var(--line);background:none;color:var(--ink-3);padding:3px 10px;border-radius:8px;font-size:13px}
+.bf-empty:hover{border-color:var(--accent);color:var(--accent)}
+.kvs{display:grid;grid-template-columns:auto minmax(0,1fr);gap:3px 14px;margin:0}
+.kvs dt{color:var(--ink-3)}
+.kvs dd{margin:0;overflow-wrap:anywhere}
+.bf-list{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:3px}
+.bf-cov{display:flex;align-items:center;gap:10px;font:500 12px var(--font-mono);color:var(--ink-3)}
+.bf-cov .meter{flex:1;max-width:160px}
+.chips.big .chip{font-size:13px;padding:3px 10px}
+.ac-tags{display:flex;flex-wrap:wrap;gap:4px}
+.ac-tags .chip{font-size:11px;padding:1px 6px}
+.lock{max-width:520px;margin:12vh auto 0}
+.banner.info{border-color:var(--line);background:var(--surface)}
+.lockform{display:grid;gap:10px;max-width:420px}
+.ro .wr{display:none!important}
+
+@media (max-width:900px){
+  .app{grid-template-columns:minmax(0,1fr)}
+  .side{position:sticky;z-index:20;max-height:none;flex-direction:row;flex-wrap:wrap;align-items:center;gap:8px 12px;padding:10px 16px;background:var(--bg);border-right:0;border-bottom:1px solid var(--line)}
+  #nav{flex-direction:row;overflow-x:auto;order:3;width:100%;scrollbar-width:none}
+  .nav-i{width:auto;white-space:nowrap}
+  .side-foot{display:none}
+  .grid-2{grid-template-columns:minmax(0,1fr)}
+  .kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .kpi:nth-child(odd){border-left:0}
+  .kpi:nth-child(n+3){border-top:1px solid var(--line-2)}
+  .main{padding-top:20px}
+}
+@media (max-width:900px){.dup{display:none}}
+@media (max-width:640px){
+  .fgrid,.rl.a,.rl.b,.rl.c,.rl.d,.addbar{grid-template-columns:minmax(0,1fr)}
+  .rl.a .xbtn{justify-self:end}
+  .evl li{grid-template-columns:minmax(0,1fr) 36px}
+  .evl li .ev-d,.evl li .ev-t{grid-column:1/2}
+  .sk-row{grid-template-columns:minmax(0,1fr);gap:6px}
+  .sk-row.hd{display:none}
+  .bf-grid{grid-template-columns:minmax(0,1fr)}
+  .head h1{font-size:26px}
+  .legend{grid-template-columns:minmax(0,1fr)}
+  .drawer{border-left:0}
+}
+@media (prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important;animation:none!important}}
+</style>
+
+<div class="app" id="app">
+  <aside class="side">
+    <div class="brand">
+      <span class="mark" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 19L19 5M9 5h10v10"/></svg></span>
+      <div><b>Cap Avril</b><small>Suivi de stage</small></div>
+    </div>
+    <button class="btn primary wr" id="quick-app" type="button"></button>
+    <nav id="nav" aria-label="Sections"></nav>
+    <div class="side-foot" id="sidefoot"></div>
+  </aside>
+  <main class="main" id="main" tabindex="-1"></main>
+</div>
+<div id="layer"></div>
+<datalist id="skills-list"></datalist>
+<datalist id="domains-list"></datalist>
+<datalist id="soft-list"><option value="Autonomie"><option value="Rigueur"><option value="Curiosité"><option value="Communication"><option value="Esprit d’équipe"><option value="Capacité d’analyse"><option value="Pédagogie"><option value="Initiative"><option value="Gestion du stress"><option value="Anglais courant"></datalist>
+
+<script>
+(function(){
+'use strict';
+
+/* ---------- constants ---------- */
+const FOLLOWUP_DAYS=10, STANDALONE=!(window.claude&&window.claude.use), COLS=['apps','projects','settings'], VKEY='capavril:vault', FILEP=(window.claude&&window.claude.use)?'cap-avril':'cap-stage';
+const STAT=[['todo','À postuler'],['sent','Envoyée'],['contact','En échange'],['interview','Entretien'],['offer','Offre reçue'],['accepted','Acceptée'],['rejected','Refusée'],['withdrawn','Abandonnée']];
+const STAT_L=Object.fromEntries(STAT);
+const ACTIVE=['todo','sent','contact','interview','offer'], CLOSED=['accepted','rejected','withdrawn'];
+const PRIO=[['high','Haute'],['mid','Moyenne'],['low','Basse']];
+const PRIO_L=Object.fromEntries(PRIO), PRIO_W={high:0,mid:1,low:2};
+const CHANNELS=['Site carrière','LinkedIn','Candidature spontanée','Forum / salon','Cooptation / réseau','Plateforme de stages','Email direct','Autre'];
+const WORK=[['','Non précisé'],['onsite','Sur site'],['hybrid','Hybride'],['remote','Télétravail']];
+const EV=[['note','Note'],['email','Email'],['call','Appel'],['reply','Réponse reçue'],['interview','Entretien'],['test','Test technique'],['followup','Relance'],['status','Statut']];
+const EV_L=Object.fromEntries(EV);
+const DOCK=[['cv','CV'],['letter','Lettre de motivation'],['portfolio','Portfolio'],['github','GitHub'],['linkedin','LinkedIn'],['grades','Relevé de notes'],['agreement','Convention de stage'],['contact','Coordonnées'],['id','Pièce d’identité'],['reco','Recommandation'],['other','Autre']];
+const DOCK_L=Object.fromEntries(DOCK);
+const CTX=[['school','Projet de formation'],['perso','Projet personnel'],['ctf','CTF / compétition'],['work','Stage / emploi'],['other','Autre']];
+const CTX_L=Object.fromEntries(CTX);
+const PSTAT=[['done','Terminé'],['wip','En cours'],['archived','Archivé']];
+const PSTAT_L=Object.fromEntries(PSTAT);
+const DOMAINS=['SOC / détection','Pentest / Red team','Audit / Conformité (GRC)','Réponse à incident / DFIR','Forensique / Reverse','Cloud security','Sécurité applicative / DevSecOps','Cryptographie','Threat intelligence','Sécurité des réseaux','Systèmes embarqués / IoT','IAM / Identités','Data engineering','Data science / ML','Gouvernance des données','IA et sécurité','Big Data'];
+const SENSITIVE=[[/\b[12]\s?\d{2}\s?(0[1-9]|1[0-2])\s?\d{2}\s?\d{3}\s?\d{3}\s?\d{2}\b/,'un numéro de sécurité sociale'],[/\b[A-Z]{2}\d{2}(?:\s?[A-Z0-9]{4}){3,7}\b/,'un IBAN'],[/\b(?:\d[ -]?){13,19}\b/,'un numéro de carte bancaire'],[/\b(mot de passe|password|mdp)\s*[:=]\s*\S+/i,'un mot de passe']];
+
+/* ---------- helpers ---------- */
+function h(tag,attrs,...kids){
+  const e=document.createElement(tag); let val;
+  if(attrs) for(const k in attrs){
+    const v=attrs[k];
+    if(v==null||v===false) continue;
+    if(k==='class') e.className=v;
+    else if(k==='dataset') Object.assign(e.dataset,v);
+    else if(k==='html') e.innerHTML=v;
+    else if(k==='value') val=v;
+    else if(k==='checked') e.checked=!!v;
+    else if(k.slice(0,2)==='on'&&typeof v==='function') e.addEventListener(k.slice(2),v);
+    else e.setAttribute(k,v===true?'':v);
+  }
+  for(const c of kids.flat(Infinity)){ if(c==null||c===false) continue; e.append(c instanceof Node?c:String(c)); }
+  if(val!==undefined) e.value=val;
+  return e;
+}
+const $=(s,r)=>(r||document).querySelector(s);
+const IC={
+  plus:'<path d="M12 5v14M5 12h14"/>', x:'<path d="M6 6l12 12M18 6L6 18"/>', search:'<circle cx="11" cy="11" r="6.5"/><path d="M16 16l4 4"/>',
+  trash:'<path d="M4 7h16M10 11v6M14 11v6M6 7l1 12h10l1-12M9 7V4h6v3"/>', link:'<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>',
+  download:'<path d="M12 4v11M7 11l5 5 5-5M5 20h14"/>', check:'<path d="M5 12.5l4.5 4.5L19 7.5"/>', clock:'<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>',
+  grid:'<rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="4" rx="1.5"/><rect x="13" y="10" width="7" height="10" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/>',
+  brief:'<rect x="3.5" y="7" width="17" height="12" rx="2"/><path d="M9 7V5.5A1.5 1.5 0 0 1 10.5 4h3A1.5 1.5 0 0 1 15 5.5V7M3.5 12.5h17"/>',
+  file:'<path d="M7 3.5h7l4 4V20a.5.5 0 0 1-.5.5h-10a.5.5 0 0 1-.5-.5V4a.5.5 0 0 1 .5-.5zM14 3.5V8h4"/>',
+  code:'<path d="M9 8l-4 4 4 4M15 8l4 4-4 4M13.5 5.5l-3 13"/>', target:'<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.5"/>',
+  board:'<rect x="4" y="4" width="4.5" height="16" rx="1"/><rect x="10" y="4" width="4.5" height="10" rx="1"/><rect x="16" y="4" width="4" height="13" rx="1"/>',
+  list:'<path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"/>', ext:'<path d="M14 5h5v5M19 5l-8 8M11 6H6a1 1 0 0 0-1 1v11a1 1 0 0 0 1 1h11a1 1 0 0 0 1-1v-5"/>',
+  star:'<path d="M12 3.6l2.6 5.4 5.9.8-4.3 4.1 1.1 5.8L12 17l-5.3 2.7 1.1-5.8L3.5 9.8l5.9-.8z"/>', lock:'<rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>',
+  cog:'<circle cx="12" cy="12" r="3"/><path d="M12 3.5v2.2M12 18.3v2.2M3.5 12h2.2M18.3 12h2.2M6 6l1.6 1.6M16.4 16.4L18 18M6 18l1.6-1.6M16.4 7.6L18 6"/>',
+  upload:'<path d="M12 16V5M7 9l5-5 5 5M5 20h14"/>'
+};
+const icon=(n,s,f)=>h('span',{class:'ic',html:'<svg width="'+(s||16)+'" height="'+(s||16)+'" viewBox="0 0 24 24" fill="'+(f?'currentColor':'none')+'" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+IC[n]+'</svg>'});
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+const pad=n=>String(n).padStart(2,'0');
+const iso=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+const today=()=>iso(new Date());
+const parse=s=>{const p=s.split('-').map(Number);return new Date(p[0],p[1]-1,p[2]||1)};
+const addDays=(s,n)=>{const d=parse(s);d.setDate(d.getDate()+n);return iso(d)};
+const diffDays=(a,b)=>Math.round((parse(a)-parse(b))/864e5);
+const FMT=new Intl.DateTimeFormat('fr-FR',{day:'numeric',month:'short',year:'numeric'});
+const FMT_S=new Intl.DateTimeFormat('fr-FR',{day:'numeric',month:'short'});
+const FMT_M=new Intl.DateTimeFormat('fr-FR',{month:'short',year:'numeric'});
+const VALID_D=/^\d{4}-\d{2}(-\d{2})?$/;
+const vd=x=>typeof x==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(x)?x:'';
+const fmtWith=F=>x=>{if(!x||!VALID_D.test(x))return '';const d=parse(x);return isNaN(d)?'':F.format(d)};
+const fmtDate=fmtWith(FMT),fmtShort=fmtWith(FMT_S),fmtMonth=fmtWith(FMT_M);
+const rel=s=>{if(!VALID_D.test(s||''))return '';const n=diffDays(s,today());return n===0?"aujourd'hui":n===1?'demain':n===-1?'hier':n>0?'dans '+n+' j':'il y a '+(-n)+' j'};
+const norm=s=>String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/\s+/g,' ').trim();
+const href=u=>{u=(u||'').trim();if(!u)return '';if(/^https?:\/\//i.test(u))return u;if(/^[\w-]+(\.[\w-]+)+(\/|$)/.test(u))return 'https://'+u;return ''};
+const clone=o=>JSON.parse(JSON.stringify(o));
+const plural=(n,a,b)=>n+' '+(n>1?b:a);
+
+/* ---------- state ---------- */
+const S={apps:new Map(),projects:new Map(),view:'overview',layout:innerWidth<900?'list':'board',
+  q:'',fStatus:'',fPrio:'',fDue:false,sort:'activity',showClosed:false,pq:'',
+  store:null,dl:null,canWrite:true,loaded:{apps:false,projects:false,settings:false},prefs:{targetStart:'',eventLabel:'',eventDate:''},error:'',note:'',rev:0,locked:false};
+let D=null;      // open drawer
+let raf=0;
+
+/* ---------- models ---------- */
+function newApp(p){const n=new Date().toISOString();return Object.assign({id:uid(),company:'',sector:'',location:'',website:'',channel:'',priority:'mid',status:'todo',
+  title:'',offerUrl:'',offerRef:'',durationMonths:4,startDate:'',workMode:'',pay:'',missions:'',profile:'',constraints:'',skills:[],keySkills:[],softSkills:[],domains:[],realNeed:'',whyMe:'',team:'',process:'',
+  provided:[],contacts:[],events:[],projectIds:[],projectNote:'',nextAction:'',nextDate:'',deadline:'',appliedAt:'',notes:'',createdAt:n,updatedAt:n},p||{})}
+function newProject(p){const n=new Date().toISOString();return Object.assign({id:uid(),name:'',status:'done',context:'school',startMonth:'',endMonth:'',role:'',teamSize:'',
+  summary:'',description:'',contributions:'',results:'',technologies:[],skills:[],domains:[],links:[],learnings:'',pitch:'',createdAt:n,updatedAt:n},p||{})}
+const STR_APP=['company','sector','location','website','channel','priority','status','title','offerUrl','offerRef','startDate','workMode','missions','profile','constraints','realNeed','whyMe','team','process','projectNote','nextAction','nextDate','deadline','appliedAt','notes','createdAt','updatedAt'];
+const STR_PROJ=['name','status','context','startMonth','endMonth','role','summary','description','contributions','results','learnings','pitch','createdAt','updatedAt'];
+const toStr=(o,keys)=>{for(const k of keys)if(typeof o[k]!=='string')o[k]=o[k]==null?'':String(o[k])};
+function fix(kind,d){
+  const o=Object.assign(kind==='apps'?newApp():newProject(),d);
+  toStr(o,kind==='apps'?STR_APP:STR_PROJ);
+  const strs=k=>{o[k]=(Array.isArray(o[k])?o[k]:[]).filter(x=>x!=null&&typeof x!=='object').map(String)};
+  const objs=(k,keys)=>{o[k]=(Array.isArray(o[k])?o[k]:[]).filter(x=>x&&typeof x==='object').map(x=>{const y=Object.assign({},x);toStr(y,keys);if(!y.id)y.id=uid();return y})};
+  if(kind==='apps'){
+    ['skills','keySkills','softSkills','domains','projectIds'].forEach(strs);
+    objs('provided',['kind','label','url','date','note']);objs('contacts',['name','role','email','phone','linkedin','note']);objs('events',['date','type','text']);
+    if(!STAT_L[o.status])o.status='todo';if(!PRIO_L[o.priority])o.priority='mid';
+    o.provided.forEach(p=>{if(!DOCK_L[p.kind])p.kind='other'});o.events.forEach(e=>{if(!EV_L[e.type])e.type='note'});
+  }else{
+    ['technologies','skills','domains'].forEach(strs);objs('links',['label','url']);
+    if(!PSTAT_L[o.status])o.status='done';if(!CTX_L[o.context])o.context='other';
+  }
+  return o;
+}
+
+/* ---------- derived ---------- */
+const wasSent=a=>a.status!=='todo'&&!(a.status==='withdrawn'&&!a.appliedAt);
+const gotReply=a=>['contact','interview','offer','accepted','rejected'].includes(a.status)||a.events.some(e=>e.type==='reply');
+const hadInterview=a=>['interview','offer','accepted'].includes(a.status)||a.events.some(e=>e.type==='interview');
+function lastActivity(a){const ds=[a.appliedAt].concat(a.events.map(e=>e.date)).filter(Boolean).sort();return ds.length?ds[ds.length-1]:(a.createdAt||'').slice(0,10)}
+function followUp(a){
+  if(a.status!=='sent'&&a.status!=='contact') return null;
+  if(a.nextDate) return {due:a.nextDate<=today(),date:a.nextDate};
+  const l=lastActivity(a); if(!l) return null;
+  const d=addDays(l,FOLLOWUP_DAYS); return {due:d<=today(),date:d,auto:true};
+}
+let idxRev=-1,idxCache=null;
+function ownIndex(){
+  if(idxRev===S.rev&&idxCache) return idxCache;
+  const m=new Map();
+  for(const p of S.projects.values()) for(const t of p.technologies.concat(p.skills)){const k=norm(t);if(!k)continue;const a=m.get(k)||[];if(!a.includes(p))a.push(p);m.set(k,a)}
+  idxRev=S.rev;idxCache=m;return m;
+}
+const isKey=(a,s)=>a.keySkills.some(k=>norm(k)===norm(s));
+const orderedSkills=a=>[...a.skills].sort((x,y)=>isKey(a,y)-isKey(a,x));
+function coverage(a){const idx=ownIndex();const c=a.skills.filter(s=>idx.has(norm(s))).length;return {n:c,total:a.skills.length}}
+function skillStats(){
+  const idx=ownIndex(),m=new Map();
+  for(const a of S.apps.values()) for(const s of a.skills){const k=norm(s);if(!k)continue;const e=m.get(k)||{key:k,label:s,apps:[],keyN:0};if(!e.apps.includes(a)){e.apps.push(a);if(isKey(a,s))e.keyN++}m.set(k,e)}
+  const out=[...m.values()];out.forEach(e=>e.projects=idx.get(e.key)||[]);
+  return out.sort((x,y)=>y.apps.length-x.apps.length||x.label.localeCompare(y.label,'fr'));
+}
+function allSkillLabels(){const s=new Set();for(const a of S.apps.values())a.skills.forEach(x=>s.add(x));for(const p of S.projects.values())p.technologies.concat(p.skills).forEach(x=>s.add(x));return [...s].sort((a,b)=>a.localeCompare(b,'fr'))}
+
+/* ---------- storage ---------- */
+function dbStore(db){return {mode:'db',
+  subscribe(col,cb,err){return db.collection(col).onSnapshot(s=>cb(s.docs.map(d=>Object.assign({id:d.id},clone(d.data())))),err)},
+  save(col,id,data){return db.doc(col+'/'+id).set(JSON.parse(JSON.stringify(data)))},
+  remove(col,id){return db.doc(col+'/'+id).delete()}}}
+function b64(buf){const u=new Uint8Array(buf);let t='';for(let i=0;i<u.length;i+=32768)t+=String.fromCharCode.apply(null,u.subarray(i,i+32768));return btoa(t)}
+const unb64=t=>Uint8Array.from(atob(t),c=>c.charCodeAt(0));
+async function deriveKey(pw,salt){const km=await crypto.subtle.importKey('raw',new TextEncoder().encode(pw),'PBKDF2',false,['deriveKey']);
+  return crypto.subtle.deriveKey({name:'PBKDF2',salt,iterations:310000,hash:'SHA-256'},km,{name:'AES-GCM',length:256},false,['encrypt','decrypt'])}
+async function encJson(key,salt,obj){const iv=crypto.getRandomValues(new Uint8Array(12));const ct=await crypto.subtle.encrypt({name:'AES-GCM',iv},key,new TextEncoder().encode(JSON.stringify(obj)));
+  return JSON.stringify({v:1,salt:b64(salt),iv:b64(iv),data:b64(ct)})}
+async function decJson(key,blob){const o=JSON.parse(blob);const pt=await crypto.subtle.decrypt({name:'AES-GCM',iv:unb64(o.iv)},key,unb64(o.data));return JSON.parse(new TextDecoder().decode(pt))}
+let persistAsked=false;
+function requestPersist(){
+  if(persistAsked)return;persistAsked=true;
+  try{if(navigator.storage&&navigator.storage.persist)navigator.storage.persist().then(ok=>{S.persisted=!!ok;requestRender()},()=>{})}catch(e){}
+}
+function localStore(init){
+  const mem=(init&&init.mem)||{apps:{},projects:{},settings:{}},subs={apps:[],projects:[],settings:[]};
+  let vault=(init&&init.vault)||null,chain=Promise.resolve();
+  if(!init) for(const c of COLS) try{const r=localStorage.getItem('capavril:'+c);if(r)mem[c]=JSON.parse(r)}catch(e){}
+  const list=c=>Object.entries(mem[c]).map(([id,d])=>Object.assign({id},clone(d)));
+  const emit=c=>subs[c].forEach(f=>f(list(c)));
+  const fail=()=>toast('Le stockage du navigateur est plein ou bloqué : vos modifications ne sont pas conservées. Exportez une sauvegarde.');
+  const persist=()=>{
+    if(vault){const v=vault;chain=chain.then(async()=>{try{localStorage.setItem(VKEY,await encJson(v.key,v.salt,mem))}catch(e){fail()}})}
+    else for(const c of COLS) try{localStorage.setItem('capavril:'+c,JSON.stringify(mem[c]))}catch(e){fail();break}
+    if(S.onPersist)S.onPersist();
+    requestPersist();
+  };
+  window.addEventListener('storage',e=>{
+    if(!e.key||e.key.indexOf('capavril:')!==0) return;
+    if(vault){if(e.key===VKEY&&e.newValue)decJson(vault.key,e.newValue).then(m=>{for(const c of COLS){mem[c]=m[c]||{};emit(c)}}).catch(()=>{});return}
+    const c=e.key.slice(9);if(COLS.indexOf(c)<0)return;
+    try{mem[c]=JSON.parse(e.newValue||'{}')}catch(x){return}emit(c);
+  });
+  return {mode:'local',
+    isLocked:()=>!!vault,
+    password:()=>vault?vault.pw:'',
+    backup:()=>({app:'cap-stage',version:1,savedAt:new Date().toISOString(),apps:list('apps'),projects:list('projects'),prefs:(mem.settings&&mem.settings.prefs)||null}),
+    encryptBackup:b=>encJson(vault.key,vault.salt,b),
+    replaceAll(b){
+      mem.apps={};mem.projects={};mem.settings={};
+      for(const d of b.apps){const x=Object.assign({},d);delete x.id;mem.apps[d.id]=x}
+      for(const d of b.projects){const x=Object.assign({},d);delete x.id;mem.projects[d.id]=x}
+      if(b.prefs)mem.settings.prefs=b.prefs;
+      persist();for(const c of COLS)emit(c);
+    },
+    subscribe(c,cb){subs[c].push(cb);setTimeout(()=>cb(list(c)),0);return ()=>{subs[c]=subs[c].filter(f=>f!==cb)}},
+    save(c,id,data){mem[c][id]=JSON.parse(JSON.stringify(data));persist();emit(c);return Promise.resolve()},
+    remove(c,id){delete mem[c][id];persist();emit(c);return Promise.resolve()},
+    async enableLock(pw){const salt=crypto.getRandomValues(new Uint8Array(16));const key=await deriveKey(pw,salt);const blob=await encJson(key,salt,mem);
+      await decJson(key,blob);localStorage.setItem(VKEY,blob);for(const c of COLS)try{localStorage.removeItem('capavril:'+c)}catch(e){}vault={key,salt,pw}},
+    async disableLock(){for(const c of COLS)localStorage.setItem('capavril:'+c,JSON.stringify(mem[c]));localStorage.removeItem(VKEY);vault=null}
+  };
+}
+async function unlockVault(pw){
+  const blob=localStorage.getItem(VKEY),o=JSON.parse(blob),salt=unb64(o.salt),key=await deriveKey(pw,salt);
+  const mem=await decJson(key,blob);
+  S.store=localStore({mem:Object.assign({apps:{},projects:{},settings:{}},mem),vault:{key,salt,pw}});
+  S.locked=false;document.body.classList.remove('ro');renderSideFoot();attach();renderNav();
+}
+function attach(){
+  if(STANDALONE)S.onReady=()=>{FS.init();GD.init()};
+  const ready=()=>{if(S.onReady&&S.loaded.apps&&S.loaded.projects&&S.loaded.settings){const f=S.onReady;S.onReady=null;f()}};
+  for(const col of COLS){
+    S.store.subscribe(col,docs=>{
+      if(col==='settings'){const p=docs.find(d=>d.id==='prefs')||{};S.prefs={targetStart:vd(p.targetStart),eventLabel:String(p.eventLabel||'').slice(0,120),eventDate:vd(p.eventDate)};S.loaded.settings=true;S.rev++;requestRender();ready();return}
+      const m=S[col];m.clear();
+      docs.forEach(d=>m.set(d.id,fix(col,d)));
+      if(D&&D.kind===col&&D.dirty&&D.doc) m.set(D.id,D.doc);
+      S.loaded[col]=true;S.rev++;onData(col);ready();
+    },e=>{S.error='La base de données ne répond pas ('+((e&&e.code)||'erreur')+').';S.loaded[col]=true;renderMain()});
+  }
+}
+function onData(col){
+  refreshSuggestions();
+  if(D&&D.kind===col&&!D.dirty&&!D.saving){
+    const d=S[col].get(D.id);
+    if(!d) closeDrawer(true);
+    else if(d.updatedAt!==D.doc.updatedAt){D.doc=clone(d);rebuildDrawer()}
+  }
+  requestRender();
+}
+function requestRender(){clearTimeout(raf);raf=setTimeout(()=>{renderNav();renderMain()},16)}
+function saveState(t,err){const e=$('#savestate');if(e){e.textContent=t;e.className='save'+(err?' err':'')}}
+function touch(){
+  if(!D) return; D.dirty=true;saveState('Modifications…');
+  clearTimeout(D.timer);D.timer=setTimeout(flush,600);
+  if(D.kind==='apps'){clearTimeout(D.bt);D.bt=setTimeout(refreshBrief,180)}
+}
+async function flush(){
+  const d=D; if(!d||!d.dirty) return;
+  if(d.saving){d.pending=true;return}
+  clearTimeout(d.timer);d.saving=true;d.dirty=false;
+  d.doc.updatedAt=new Date().toISOString();
+  S[d.kind].set(d.id,d.doc);S.rev++;
+  const data=Object.assign({},d.doc);delete data.id;
+  try{await S.store.save(d.kind,d.id,data);if(D===d)saveState('Enregistré')}
+  catch(e){d.dirty=true;if(D===d)saveState('Échec de l’enregistrement',true)}
+  d.saving=false;
+  if(d.pending){d.pending=false;if(d.dirty)flush()}
+}
+async function saveDoc(kind,doc){
+  doc.updatedAt=new Date().toISOString();S[kind].set(doc.id,doc);S.rev++;requestRender();
+  const data=Object.assign({},doc);delete data.id;
+  try{await S.store.save(kind,doc.id,data)}catch(e){toast('Enregistrement impossible. Réessayez dans un instant.')}
+}
+function applyStatus(doc,st){
+  if(doc.status===st) return;
+  const from=doc.status;doc.status=st;
+  doc.events.push({id:uid(),date:today(),type:'status',text:'Statut : '+STAT_L[from]+' → '+STAT_L[st]});
+  if(st==='sent'&&!doc.appliedAt) doc.appliedAt=today();
+}
+function changeStatus(id,st){const a=S.apps.get(id);if(!a||a.status===st)return;const c=clone(a);applyStatus(c,st);saveDoc('apps',c)}
+async function removeDoc(kind,id){
+  S[kind].delete(id);S.rev++;
+  try{await S.store.remove(kind,id)}catch(e){toast('Suppression impossible. Réessayez.')}
+}
+function refreshSuggestions(){
+  const dl=$('#skills-list');if(dl)dl.replaceChildren(...allSkillLabels().map(s=>h('option',{value:s})));
+  const dd=$('#domains-list');
+  if(dd){const u=new Set(DOMAINS);for(const a of S.apps.values())a.domains.forEach(x=>u.add(x));for(const p of S.projects.values())p.domains.forEach(x=>u.add(x));
+    dd.replaceChildren(...[...u].sort((a,b)=>a.localeCompare(b,'fr')).map(x=>h('option',{value:x})))}
+}
+function toast(msg){const t=h('div',{class:'toast',role:'status'},msg);$('#layer').append(t);setTimeout(()=>t.remove(),3800)}
+
+/* ---------- navigation ---------- */
+const NAV=[['overview','Aperçu','grid'],['apps','Candidatures','brief'],['dossiers','Dossiers envoyés','file'],['projects','Projets','code'],['skills','Compétences','target'],['settings','Réglages','cog']];
+function go(v){S.view=v;if(D)closeDrawer();requestRender();window.scrollTo(0,0);try{history.replaceState(null,'','#'+v)}catch(e){}}
+function renderNav(){
+  if(S.locked){$('#nav').replaceChildren();return}
+  const counts={apps:S.apps.size,projects:S.projects.size};
+  $('#nav').replaceChildren(...NAV.map(([k,l,i])=>h('button',{class:'nav-i',type:'button','aria-current':S.view===k?'page':null,onclick:()=>go(k)},icon(i),l,counts[k]!=null&&h('span',{class:'n'},counts[k]))));
+  const q=$('#quick-app');if(q&&!q.firstChild)q.append(icon('plus'),'Nouvelle candidature');
+}
+function renderSideFoot(){
+  const f=$('#sidefoot');if(!f)return;
+  f.replaceChildren(...[S.store&&h('span',null,[icon('lock',13),S.store.mode==='db'?' Données privées, réservées à votre compte.':' Données stockées sur cet appareil uniquement.']),
+    S.store&&h('button',{class:'link',type:'button',style:'align-self:flex-start',onclick:()=>go('settings')},'Sauvegarde et réglages')].filter(Boolean));
+}
+
+/* ---------- main render ---------- */
+function renderMain(){
+  const m=$('#main');if(!m)return;
+  if(S.locked==='vault'){m.replaceChildren(viewUnlock());return}
+  if(S.locked){m.replaceChildren(viewLocked());return}
+  const ae=document.activeElement,fid=ae&&m.contains(ae)?ae.id:'',ss=fid&&ae.selectionStart;
+  let view;
+  if(!S.store||!(S.loaded.apps&&S.loaded.projects&&S.loaded.settings)) view=h('div',{class:'empty'},h('b',null,'Chargement de vos données…'));
+  else view={overview:viewOverview,apps:viewApps,dossiers:viewDossiers,projects:viewProjects,skills:viewSkills,settings:viewSettings}[S.view]();
+  m.replaceChildren(S.error&&h('div',{class:'banner',role:'alert'},S.error),S.note&&h('div',{class:'banner'},S.note),fsBanner(),view);
+  if(fid){const n=document.getElementById(fid);if(n){n.focus();try{if(ss!==false&&ss!=null)n.setSelectionRange(ss,ss)}catch(e){}}}
+}
+function viewLocked(){return h('div',{class:'empty lock'},icon('lock',28),h('b',null,'Accès réservé'),h('p',null,'Ces données appartiennent au propriétaire de cette page. Connectez-vous avec son compte Claude pour y accéder.'))}
+const head=(t,sub,...acts)=>h('div',{class:'head'},h('div',null,h('h1',null,t),sub&&h('p',null,sub)),h('div',{class:'acts'},acts));
+
+/* ----- overview ----- */
+function viewOverview(){
+  const apps=[...S.apps.values()],projects=[...S.projects.values()];
+  const sent=apps.filter(wasSent),replies=sent.filter(gotReply),itv=apps.filter(hadInterview),offers=apps.filter(a=>a.status==='offer'||a.status==='accepted');
+  const rate=sent.length?Math.round(replies.length/sent.length*100)+' % de réponses':'aucune envoyée';
+  const pr=S.prefs,d1=pr.targetStart?diffDays(pr.targetStart,today()):null,d2=pr.eventDate?diffDays(pr.eventDate,today()):null;
+  const showEv=d2!=null&&d2>=0&&pr.eventLabel;
+  const cap=(d1!=null||showEv)?h('div',{class:'cap'},
+    d1!=null&&h('div',null,h('span',{class:'eyebrow'},'Départ visé'),h('b',null,fmtMonth(pr.targetStart)),h('span',{class:'mono'},d1>0?'J-'+d1:'en cours')),
+    showEv&&h('div',null,h('span',{class:'eyebrow'},pr.eventLabel),h('b',null,fmtDate(pr.eventDate)),h('span',{class:'mono'},d2===0?"aujourd'hui":'J-'+d2))):
+    h('div',{class:'cap'},h('div',null,h('span',{class:'eyebrow'},'Objectif'),h('b',null,'Quand voulez-vous commencer ?'),h('button',{class:'btn sm wr',type:'button',onclick:()=>go('settings')},'Définir mes dates')));
+  const welcome=(STANDALONE&&!apps.length&&!projects.length)?h('div',{class:'banner info'},h('b',null,'Bienvenue. '),(GD.available?'Vos données restent sur cet appareil, sauf si vous activez la synchronisation Google Drive. Pensez à la configurer, ou à exporter une sauvegarde de temps en temps, depuis ':'Vos données restent sur cet appareil : ce site n’envoie rien à un serveur. Pensez à exporter une sauvegarde de temps en temps depuis '),h('button',{class:'link',type:'button',onclick:()=>go('settings')},'Réglages'),'.'):null;
+  const kpis=h('div',{class:'kpis'},
+    [[apps.length,'candidatures suivies'],[sent.length,'envoyées'],[replies.length,rate],[itv.length,'entretiens'],[offers.length,'offres']].map(([n,l])=>h('div',{class:'kpi'},h('b',null,n),h('span',null,l))));
+  /* to do */
+  const todo=[];
+  for(const a of apps){
+    const f=followUp(a),open=!CLOSED.includes(a.status);
+    if(f&&f.due) todo.push({date:f.date,late:true,a,t:'Relancer '+(a.company||'cette entreprise'),s:a.nextAction||('Sans nouvelle depuis '+diffDays(today(),lastActivity(a))+' j')});
+    else if(open&&a.nextDate&&diffDays(a.nextDate,today())<=14) todo.push({date:a.nextDate,late:a.nextDate<today(),a,t:a.nextAction||'Prochaine étape',s:a.company});
+    if(a.status==='todo'&&a.deadline&&diffDays(a.deadline,today())<=14) todo.push({date:a.deadline,late:a.deadline<today(),a,t:'Postuler chez '+(a.company||'…'),s:'Date limite '+fmtDate(a.deadline)});
+  }
+  todo.sort((x,y)=>x.date.localeCompare(y.date));
+  const todoPanel=h('section',{class:'panel'},h('h2',null,'À faire'),
+    todo.length?h('ul',{class:'todo'},todo.slice(0,8).map(x=>h('li',null,h('button',{type:'button',onclick:()=>openDrawer('apps',x.a.id)},
+      h('span',{class:'when'+(x.late?' late':'')},rel(x.date)),h('span',{class:'what'},h('b',null,x.t),h('small',null,x.s)))))):
+    h('div',{class:'empty sm'},apps.length?'Rien d’urgent. Les relances et échéances des 14 prochains jours apparaîtront ici.':'Vos relances, rendez-vous et dates limites des 14 prochains jours apparaîtront ici.'));
+  /* activity */
+  const feed=[];for(const a of apps)for(const e of a.events)feed.push({a,e});
+  feed.sort((x,y)=>(y.e.date||'').localeCompare(x.e.date||''));
+  const feedPanel=h('section',{class:'panel'},h('h2',null,'Activité récente'),
+    feed.length?h('ul',{class:'feed'},feed.slice(0,8).map(({a,e})=>h('li',null,h('span',{class:'d'},fmtShort(e.date)),h('div',null,h('button',{type:'button',onclick:()=>openDrawer('apps',a.id)},a.company||'Sans nom'),' · ',h('span',{class:'muted'},EV_L[e.type]||'Note'),e.text&&h('div',{class:'muted'},e.text))))):
+    h('div',{class:'empty sm'},'Chaque changement de statut, email, appel ou entretien noté dans une fiche apparaîtra ici.'));
+  /* pipeline */
+  const segs=STAT.map(([k,l])=>[k,l,apps.filter(a=>a.status===k).length]);
+  const pipe=h('section',{class:'panel'},h('h2',null,'Pipeline',h('button',{class:'link',type:'button',onclick:()=>go('apps')},'Ouvrir le tableau')),
+    apps.length?h('div',{class:'bar',role:'img','aria-label':segs.filter(s=>s[2]).map(s=>s[1]+' : '+s[2]).join(', ')},segs.filter(s=>s[2]).map(([k,l,n])=>h('span',{dataset:{st:k},style:'flex:'+n,title:l+' : '+n},n))):h('div',{class:'bar empty-bar'}),
+    h('ul',{class:'legend'},segs.map(([k,l,n])=>h('li',{dataset:{st:k}},h('span',{class:'dot'}),l,h('span',{class:'n'},n)))));
+  /* skills */
+  const sk=skillStats().slice(0,6),max=sk.length?sk[0].apps.length:1;
+  const skPanel=h('section',{class:'panel'},h('h2',null,'Compétences les plus demandées',h('button',{class:'link',type:'button',onclick:()=>go('skills')},'Tout voir')),
+    sk.length?sk.map(e=>h('div',{class:'skill-line'},h('span',{class:'mono'},e.label),h('div',{class:'meter'},h('span',{style:'width:'+Math.round(e.apps.length/max*100)+'%;background:'+(e.projects.length?'var(--ok)':'var(--warn)')})),
+      h('span',{class:'chip '+(e.projects.length?'ok':'gap')},e.apps.length+' · '+(e.projects.length?'couverte':'à renforcer')))):
+    h('div',{class:'empty sm'},'Saisissez les compétences demandées dans vos fiches : elles seront comparées à celles de vos projets.'));
+  /* first steps */
+  const steps=[[projects.length>0,'Décrivez vos projets','Technologies, résultats, liens : ils servent à mesurer la couverture des compétences.','projects'],
+    [apps.length>0,'Ajoutez une première offre','Entreprise, stage proposé, compétences demandées.','apps'],
+    [apps.some(a=>a.provided.length>0),'Notez ce que vous avez envoyé','CV, lettre, portfolio : version et date, pour chaque entreprise.','dossiers']];
+  const stepsPanel=steps.every(s=>s[0])?null:h('section',{class:'panel'},h('h2',null,'Pour démarrer'),
+    h('ul',{class:'steps'},steps.map(([ok,t,s,v])=>h('li',{class:ok?'done':''},h('span',{class:'box'},ok&&icon('check',13)),h('div',null,h('span',{class:'t'},h('button',{class:'link',type:'button',onclick:()=>go(v)},t)),h('div',{class:'muted'},s))))));
+  return h('div',null,head('Aperçu','Où en sont vos recherches de stage, et ce qui demande une action.'),welcome,cap,kpis,
+    h('div',{class:'grid-2'},h('div',{class:'stack'},todoPanel,feedPanel),h('div',{class:'stack'},stepsPanel,pipe,skPanel)));
+}
+
+/* ----- applications ----- */
+function filteredApps(){
+  const q=norm(S.q);
+  const list=[...S.apps.values()].filter(a=>{
+    if(S.fStatus&&a.status!==S.fStatus) return false;
+    if(S.fPrio&&a.priority!==S.fPrio) return false;
+    if(S.fDue&&!(followUp(a)&&followUp(a).due)) return false;
+    if(q&&!norm([a.company,a.title,a.location,a.sector,a.skills.join(' '),a.notes,a.contacts.map(c=>c.name).join(' ')].join(' ')).includes(q)) return false;
+    return true;
+  });
+  const cmp={activity:(a,b)=>lastActivity(b).localeCompare(lastActivity(a)),company:(a,b)=>a.company.localeCompare(b.company,'fr'),
+    priority:(a,b)=>PRIO_W[a.priority]-PRIO_W[b.priority]||a.company.localeCompare(b.company,'fr'),
+    deadline:(a,b)=>(a.deadline||'9999').localeCompare(b.deadline||'9999')}[S.sort];
+  return list.sort(cmp);
+}
+function viewApps(){
+  const results=h('div',{id:'results'});
+  const draw=()=>results.replaceChildren(S.layout==='board'?board():table());
+  const sel=(id,key,opts,all)=>h('select',{class:'select',id,'aria-label':all,value:S[key],onchange:e=>{S[key]=e.target.value;draw()}},h('option',{value:''},all),opts.map(([k,l])=>h('option',{value:k},l)));
+  const tb=h('div',{class:'toolbar'},
+    h('div',{class:'grow'},icon('search'),h('input',{class:'input',id:'q-apps',type:'search','aria-label':'Rechercher une candidature',placeholder:'Entreprise, stage, compétence…',autocomplete:'off',value:S.q,oninput:e=>{S.q=e.target.value;draw()}})),
+    sel('flt-status','fStatus',STAT,'Tous les statuts'),sel('flt-prio','fPrio',PRIO,'Toutes priorités'),
+    h('select',{class:'select',id:'flt-sort','aria-label':'Trier',value:S.sort,onchange:e=>{S.sort=e.target.value;draw()}},
+      [['activity','Dernière activité'],['company','Entreprise'],['priority','Priorité'],['deadline','Date limite']].map(([k,l])=>h('option',{value:k},'Tri : '+l))),
+    h('button',{class:'toggle',type:'button','aria-pressed':String(S.fDue),onclick:e=>{S.fDue=!S.fDue;e.currentTarget.setAttribute('aria-pressed',String(S.fDue));draw()}},icon('clock',14),'À relancer'),
+    S.layout==='board'&&h('button',{class:'toggle',type:'button','aria-pressed':String(S.showClosed),onclick:e=>{S.showClosed=!S.showClosed;e.currentTarget.setAttribute('aria-pressed',String(S.showClosed));draw()}},'Clôturées'),
+    h('div',{class:'seg',role:'group','aria-label':'Affichage'},
+      h('button',{type:'button','aria-pressed':String(S.layout==='board'),title:'Tableau kanban',onclick:()=>{S.layout='board';renderMain()}},icon('board',15),'Kanban'),
+      h('button',{type:'button','aria-pressed':String(S.layout==='list'),title:'Liste',onclick:()=>{S.layout='list';renderMain()}},icon('list',15),'Liste')));
+  draw();
+  const n=S.apps.size;
+  return h('div',null,head('Candidatures',n?plural(n,'candidature suivie','candidatures suivies')+'. Glissez une carte pour changer son statut.':'Une fiche par entreprise : stage proposé, compétences, documents envoyés, échanges.',
+    h('button',{class:'btn primary wr dup',type:'button',onclick:()=>quickAdd('apps')},icon('plus'),'Nouvelle candidature')),
+    n?tb:null,n?results:emptyApps());
+}
+function emptyApps(){
+  return h('div',{class:'empty'},h('b',null,'Aucune candidature pour l’instant'),
+    h('p',null,'Ajoutez chaque offre dès que vous la repérez, même avant d’avoir postulé. Le statut « À postuler » sert de liste d’attente.'),
+    h('button',{class:'btn primary wr',type:'button',onclick:()=>quickAdd('apps')},icon('plus'),'Ajouter la première candidature'));
+}
+function prioEl(p){return h('span',{class:'prio',dataset:{p},title:'Priorité '+PRIO_L[p].toLowerCase(),role:'img','aria-label':'Priorité '+PRIO_L[p].toLowerCase()},h('i'),h('i'),h('i'))}
+function board(){
+  const list=filteredApps();
+  const cols=ACTIVE.concat(S.showClosed||CLOSED.includes(S.fStatus)?CLOSED:[]).filter(k=>!S.fStatus||k===S.fStatus);
+  return h('div',{class:'board'},cols.map(k=>{
+    const items=list.filter(a=>a.status===k);
+    const col=h('div',{class:'col',dataset:{st:k},
+      ondragover:e=>{if(!S.canWrite)return;e.preventDefault();col.classList.add('over')},
+      ondragleave:()=>col.classList.remove('over'),
+      ondrop:e=>{e.preventDefault();col.classList.remove('over');const id=e.dataTransfer.getData('text/plain');if(id)changeStatus(id,k)}},
+      h('div',{class:'col-h'},h('span',{class:'dot'}),STAT_L[k],h('span',{class:'n'},items.length)),
+      items.length?items.map(appCard):h('div',{class:'col-empty'},'Aucune carte'));
+    return col;
+  }));
+}
+function appCard(a){
+  const f=followUp(a),cv=coverage(a),late=a.deadline&&a.status==='todo'&&diffDays(a.deadline,today())<=7;
+  const card=h('article',{class:'acard',tabindex:'0',role:'button',draggable:S.canWrite?'true':null,'aria-label':(a.company||'Sans nom')+', '+STAT_L[a.status],
+    onclick:()=>openDrawer('apps',a.id),onkeydown:e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();openDrawer('apps',a.id)}},
+    ondragstart:e=>{e.dataTransfer.setData('text/plain',a.id);e.dataTransfer.effectAllowed='move';card.classList.add('drag')},ondragend:()=>card.classList.remove('drag')},
+    h('div',{class:'ac-top'},h('b',{class:'ac-co'},a.company||'Sans nom'),prioEl(a.priority)),
+    a.title&&h('div',{class:'ac-title'},a.title),
+    (a.domains.length>0||a.keySkills.length>0)&&h('div',{class:'ac-tags'},a.domains.slice(0,2).map(t=>h('span',{class:'chip dom'},t)),a.keySkills.slice(0,3).map(t=>h('span',{class:'chip key'},t))),
+    (a.location||a.durationMonths)&&h('div',{class:'ac-meta'},a.location&&h('span',null,a.location),a.durationMonths&&h('span',null,a.durationMonths+' mois'),a.startDate&&h('span',null,'dès '+fmtMonth(a.startDate))),
+    (f&&f.due||late||CLOSED.includes(a.status))&&h('div',{class:'ac-badges'},
+      f&&f.due&&h('span',{class:'pill flag'},'À relancer'),late&&h('span',{class:'pill flag'},'Échéance '+rel(a.deadline)),CLOSED.includes(a.status)&&h('span',{class:'pill',dataset:{st:a.status}},STAT_L[a.status])),
+    cv.total>0&&h('div',{class:'ac-cov',title:'Compétences demandées couvertes par vos projets'},cv.n+'/'+cv.total+' compét.',h('div',{class:'meter'},h('span',{style:'width:'+Math.round(cv.n/cv.total*100)+'%'}))),
+    a.nextAction&&h('div',{class:'muted',style:'font-size:12.5px'},'→ '+a.nextAction+(a.nextDate?' · '+fmtShort(a.nextDate):'')));
+  return card;
+}
+function table(){
+  const list=filteredApps();
+  if(!list.length) return h('div',{class:'empty sm'},'Aucune candidature ne correspond à ces filtres.');
+  return h('div',{class:'tblwrap'},h('table',{class:'tbl'},
+    h('thead',null,h('tr',null,['Entreprise','Statut','Prio.','Envoi','Prochaine étape','Compét.','Activité'].map(t=>h('th',{scope:'col'},t)))),
+    h('tbody',null,list.map(a=>{
+      const f=followUp(a),cv=coverage(a);
+      return h('tr',{onclick:()=>openDrawer('apps',a.id),dataset:{st:a.status}},
+        h('td',null,h('b',null,a.company||'Sans nom'),a.title&&h('small',null,a.title),a.domains.length>0&&h('small',null,a.domains.join(' · '))),
+        h('td',{onclick:e=>e.stopPropagation()},h('select',{class:'select',id:'ts-'+a.id,'aria-label':'Statut de '+(a.company||'la candidature'),dataset:{st:a.status},value:a.status,disabled:!S.canWrite,onchange:e=>changeStatus(a.id,e.target.value)},STAT.map(([k,l])=>h('option',{value:k},l)))),
+        h('td',null,prioEl(a.priority)),
+        h('td',{class:'mono'},a.appliedAt?fmtShort(a.appliedAt):'–'),
+        h('td',null,a.nextAction||(f&&f.auto?'Relance conseillée':'–'),(a.nextDate||(f&&f.due))&&h('small',{style:f&&f.due?'color:var(--warn)':''},a.nextDate?fmtShort(a.nextDate):fmtShort(f.date))),
+        h('td',{class:'mono'},cv.total?cv.n+'/'+cv.total:'–'),
+        h('td',{class:'mono muted'},fmtShort(lastActivity(a))));
+    }))));
+}
+
+/* ----- dossiers ----- */
+function viewDossiers(){
+  const apps=[...S.apps.values()].sort((a,b)=>a.company.localeCompare(b.company,'fr'));
+  const used=new Set();apps.forEach(a=>a.provided.forEach(p=>used.add(p.kind)));
+  const cols=DOCK.filter(([k])=>['cv','letter','portfolio','github','linkedin','grades'].includes(k)||used.has(k));
+  if(!apps.length) return h('div',null,head('Dossiers envoyés','Ce que chaque entreprise a reçu de vous, version par version.'),
+    h('div',{class:'empty'},h('b',null,'Rien à afficher pour l’instant'),h('p',null,'Dans chaque fiche de candidature, la section « Données fournies » recense CV, lettre, liens et pièces transmis. Cette page les croise toutes.'),
+      h('button',{class:'btn primary wr',type:'button',onclick:()=>quickAdd('apps')},icon('plus'),'Ajouter une candidature')));
+  const matrix=h('div',{class:'tblwrap'},h('table',{class:'tbl'},
+    h('thead',null,h('tr',null,h('th',{scope:'col'},'Entreprise'),cols.map(([k,l])=>h('th',{scope:'col'},l)))),
+    h('tbody',null,apps.map(a=>h('tr',{onclick:()=>openDrawer('apps',a.id,'dossier')},
+      h('td',null,h('b',null,a.company||'Sans nom'),h('small',null,STAT_L[a.status])),
+      cols.map(([k])=>{const it=a.provided.filter(p=>p.kind===k).sort((x,y)=>(y.date||'').localeCompare(x.date||''));
+        return it.length?h('td',{title:it.map(p=>(p.label||DOCK_L[k])+(p.date?' · '+fmtDate(p.date):'')).join('\n')},h('span',{class:'yes'},'✓ '),h('span',{class:'mono muted'},it[0].label||'')):h('td',{class:'no'},'–')}))))));
+  const groups=new Map();
+  for(const a of apps)for(const p of a.provided){const key=p.kind+'|'+norm(p.label);const g=groups.get(key)||{kind:p.kind,label:p.label,apps:[]};if(!g.apps.includes(a))g.apps.push(a);groups.set(key,g)}
+  const gl=[...groups.values()].sort((x,y)=>y.apps.length-x.apps.length);
+  const vers=h('section',{class:'panel'},h('h2',null,'Versions envoyées'),
+    gl.length?h('ul',{class:'feed'},gl.map(g=>h('li',null,h('span',{class:'d'},plural(g.apps.length,'envoi','envois')),h('div',null,h('b',null,(DOCK_L[g.kind]||'Autre')+(g.label?' · '+g.label:'')),h('div',{class:'muted'},g.apps.map(a=>a.company||'Sans nom').join(', ')))))):
+    h('div',{class:'empty sm'},'Aucun document noté pour le moment.'));
+  return h('div',null,head('Dossiers envoyés','Ce que chaque entreprise a reçu de vous. Cliquez une ligne pour modifier la fiche.'),h('div',{class:'stack'},matrix,vers));
+}
+
+/* ----- projects ----- */
+function viewProjects(){
+  const results=h('div',{id:'presults'});
+  const draw=()=>{
+    const q=norm(S.pq);
+    const list=[...S.projects.values()].filter(p=>!q||norm([p.name,p.summary,p.technologies.join(' '),p.skills.join(' '),p.role].join(' ')).includes(q)).sort((a,b)=>(b.endMonth||b.startMonth||'9').localeCompare(a.endMonth||a.startMonth||'9')||a.name.localeCompare(b.name,'fr'));
+    results.replaceChildren(list.length?h('div',{class:'pgrid'},list.map(p=>{
+      const used=[...S.apps.values()].filter(a=>a.projectIds.includes(p.id)).length;
+      return h('button',{class:'pcard',type:'button',onclick:()=>openDrawer('projects',p.id)},
+        h('div',{class:'chips'},h('span',{class:'pill',dataset:{st:p.status==='done'?'accepted':p.status==='wip'?'sent':'withdrawn'}},PSTAT_L[p.status]),h('span',{class:'chip'},CTX_L[p.context]||'Autre')),
+        h('h3',null,p.name||'Sans nom'),p.summary&&h('p',null,p.summary),
+        p.technologies.length>0&&h('div',{class:'chips'},p.technologies.slice(0,6).map(t=>h('span',{class:'chip'},t)),p.technologies.length>6&&h('span',{class:'chip'},'+'+(p.technologies.length-6))),
+        h('div',{class:'foot'},h('span',null,p.startMonth?fmtMonth(p.startMonth)+(p.endMonth?' → '+fmtMonth(p.endMonth):''):'Période non précisée'),h('span',null,used?'Présenté à '+used:'Jamais présenté')));
+    })):h('div',{class:'empty sm'},'Aucun projet ne correspond à cette recherche.'));
+  };
+  draw();
+  const n=S.projects.size;
+  return h('div',null,head('Projets',n?plural(n,'projet décrit','projets décrits')+'. Leurs technologies et compétences alimentent l’analyse de couverture.':'La fiche complète de chaque projet réalisé, prête à être citée dans une candidature.',
+    h('button',{class:'btn primary wr',type:'button',onclick:()=>quickAdd('projects')},icon('plus'),'Nouveau projet')),
+    n?h('div',{class:'toolbar'},h('div',{class:'grow'},icon('search'),h('input',{class:'input',id:'q-proj',type:'search','aria-label':'Rechercher un projet',placeholder:'Nom, technologie, rôle…',autocomplete:'off',value:S.pq,oninput:e=>{S.pq=e.target.value;draw()}}))):null,
+    n?results:h('div',{class:'empty'},h('b',null,'Aucun projet pour l’instant'),
+      h('p',null,'Décrivez chaque projet une fois : contexte, rôle, technologies, résultats, liens. Vous pourrez ensuite indiquer lesquels vous présentez à chaque entreprise.'),
+      h('button',{class:'btn primary wr',type:'button',onclick:()=>quickAdd('projects')},icon('plus'),'Ajouter le premier projet')));
+}
+
+/* ----- skills ----- */
+let gapsOnly=false;
+function viewSkills(){
+  const all=skillStats(),cov=all.filter(e=>e.projects.length).length;
+  const list=h('div',{class:'tblwrap'});
+  const draw=()=>{
+    const rows=all.filter(e=>!gapsOnly||!e.projects.length),max=all.length?all[0].apps.length:1;
+    list.replaceChildren(h('div',{class:'sk-row hd'},h('span',null,'Compétence'),h('span',null,'Demande'),h('span',null,'Vos projets'),h('span',null,'Entreprises')),
+      ...(rows.length?rows.map(e=>h('div',{class:'sk-row'},
+        h('span',{class:'mono'},e.label,e.keyN>0&&h('span',{class:'chip key',style:'margin-left:8px',title:'Compétence clé dans '+plural(e.keyN,'candidature','candidatures')},'clé ×'+e.keyN)),
+        h('div',{class:'sk-dem'},h('div',{class:'meter'},h('span',{style:'width:'+Math.round(e.apps.length/max*100)+'%'})),h('span',{class:'mono'},e.apps.length)),
+        e.projects.length?h('div',{class:'chips'},e.projects.map(p=>h('button',{class:'chip ok',type:'button',onclick:()=>openDrawer('projects',p.id)},p.name||'Sans nom'))):h('span',{class:'chip gap',style:'justify-self:start'},'À renforcer'),
+        h('div',{class:'chips'},e.apps.slice(0,4).map(a=>h('button',{class:'chip',type:'button',onclick:()=>openDrawer('apps',a.id)},a.company||'Sans nom')),e.apps.length>4&&h('span',{class:'chip'},'+'+(e.apps.length-4))))):
+      [h('div',{class:'empty sm',style:'border:0'},'Aucune lacune : toutes les compétences demandées apparaissent dans vos projets.')]));
+  };
+  draw();
+  if(!all.length) return h('div',null,head('Compétences','Ce que demandent les entreprises, face à ce que démontrent vos projets.'),
+    h('div',{class:'empty'},h('b',null,'Pas encore de compétences à analyser'),h('p',null,'Renseignez les compétences demandées dans vos candidatures, et les technologies de vos projets. Cette page montre ce qui revient le plus et ce qu’il reste à prouver.'),
+      h('button',{class:'btn primary wr',type:'button',onclick:()=>go('apps')},'Voir les candidatures')));
+  return h('div',null,head('Compétences',plural(all.length,'compétence demandée','compétences demandées')+' · '+cov+' démontrée'+(cov>1?'s':'')+' par vos projets · '+(all.length-cov)+' à renforcer.',
+    h('button',{class:'toggle',type:'button','aria-pressed':String(gapsOnly),onclick:e=>{gapsOnly=!gapsOnly;e.currentTarget.setAttribute('aria-pressed',String(gapsOnly));draw()}},'À renforcer seulement')),list);
+}
+
+/* ----- settings ----- */
+function armed(label,fn){const b=h('button',{class:'btn danger wr',type:'button',onclick:()=>{
+  if(!b.classList.contains('armed')){b.classList.add('armed');b.replaceChildren(icon('trash',14),'Confirmer : '+label);setTimeout(()=>{if(b.isConnected){b.classList.remove('armed');b.replaceChildren(icon('trash',14),label)}},4000);return}fn()}},icon('trash',14),label);return b}
+function savePrefs(){const d=Object.assign({},S.prefs);S.rev++;Promise.resolve(S.store.save('settings','prefs',d)).catch(()=>toast('Enregistrement impossible.'))}
+async function wipeAll(){
+  if(STANDALONE){try{await FS.forget(true)}catch(e){}try{await GD.forget(true)}catch(e){}try{Object.keys(localStorage).filter(k=>k.indexOf('capavril:')===0).forEach(k=>localStorage.removeItem(k))}catch(e){}location.reload();return}
+  for(const a of [...S.apps.keys()])await removeDoc('apps',a);for(const p of [...S.projects.keys()])await removeDoc('projects',p);
+  try{await S.store.remove('settings','prefs')}catch(e){}toast('Toutes les données ont été effacées.');requestRender();
+}
+function parseBackup(o){
+  const clean=d=>{const y={};for(const k of Object.keys(d))if(k!=='__proto__'&&k!=='constructor')y[k]=d[k];return y};
+  const ok=d=>d&&typeof d==='object'&&typeof d.id==='string'&&/^[A-Za-z0-9_\-.~:@+]{1,200}$/.test(d.id);
+  const take=(k,kind)=>(Array.isArray(o&&o[k])?o[k]:[]).filter(ok).slice(0,3000).map(d=>fix(kind,clean(d)));
+  const pr=o&&o.prefs&&typeof o.prefs==='object'?{targetStart:vd(o.prefs.targetStart),eventLabel:String(o.prefs.eventLabel||'').slice(0,120),eventDate:vd(o.prefs.eventDate)}:null;
+  return {apps:take('apps','apps'),projects:take('projects','projects'),prefs:pr,savedAt:String((o&&(o.savedAt||o.exportedAt))||'')};
+}
+async function openBackup(text){
+  let o;try{o=JSON.parse(text)}catch(e){toast('Ce fichier n’est pas une sauvegarde valide.');return null}
+  if(o&&o.iv&&o.data&&o.salt){
+    let pw=S.store&&S.store.password?S.store.password():'',tries=0;
+    for(;;){
+      if(!pw)pw=await askPassword(tries?'Mot de passe incorrect. Réessayez.':'Cette sauvegarde est chiffrée. Saisissez le mot de passe utilisé pour la chiffrer.');
+      if(!pw)return null;
+      try{const key=await deriveKey(pw,unb64(o.salt));o=await decJson(key,text);break}
+      catch(e){tries++;pw='';if(tries>=3){toast('Mot de passe incorrect.');return null}}
+    }
+  }
+  return parseBackup(o);
+}
+function importFile(f){
+  if(f.size>8*1024*1024){toast('Fichier trop volumineux (8 Mo maximum).');return}
+  const r=new FileReader();
+  r.onload=async()=>{
+    const b=await openBackup(String(r.result));if(!b)return;
+    if(!b.apps.length&&!b.projects.length&&!b.prefs){toast('Aucune donnée reconnue dans ce fichier.');return}
+    try{
+      for(const [kind,items] of [['apps',b.apps],['projects',b.projects]])for(const d of items){const data=Object.assign({},d);delete data.id;await S.store.save(kind,d.id,data)}
+      if(b.prefs){S.prefs=b.prefs;savePrefs()}
+      toast(plural(b.apps.length,'candidature importée','candidatures importées')+', '+plural(b.projects.length,'projet importé','projets importés')+'.');
+    }catch(e){toast('Import interrompu : '+((e&&e.message)||'erreur')+'.')}
+  };
+  r.readAsText(f);
+}
+/* ----- dialogs ----- */
+function dialog(title,body,buttons){
+  return new Promise(res=>{
+    const close=v=>{scrim.remove();box.remove();document.removeEventListener('keydown',onKey,true);res(v)};
+    const onKey=e=>{if(e.key==='Escape'){e.stopPropagation();close('cancel')}};
+    const box=h('div',{class:'modal',role:'dialog','aria-modal':'true','aria-label':title},h('h2',null,title),body,
+      h('div',{class:'acts'},buttons.map(b=>h('button',{class:'btn'+(b.primary?' primary':''),type:'button',onclick:()=>close(b.id)},b.label))));
+    const scrim=h('div',{class:'scrim top',onclick:()=>close('cancel')});
+    document.addEventListener('keydown',onKey,true);
+    $('#layer').append(scrim,box);
+    const f=box.querySelector('input,button');if(f)f.focus();
+  });
+}
+async function askPassword(text){
+  let pw='';
+  const input=h('input',{class:'input',id:'dlg-pw',type:'password',autocomplete:'current-password',oninput:e=>pw=e.target.value});
+  const r=await dialog('Mot de passe',h('div',{class:'field'},h('p',{class:'hint'},text),h('label',{for:'dlg-pw'},'Mot de passe'),input),[{id:'cancel',label:'Annuler'},{id:'ok',label:'Déverrouiller',primary:true}]);
+  return r==='ok'?pw:'';
+}
+
+/* ----- automatic folder backup (File System Access API) ----- */
+const idb={
+  open:()=>new Promise((res,rej)=>{const r=indexedDB.open('cap-stage',1);r.onupgradeneeded=()=>r.result.createObjectStore('kv');r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)}),
+  async get(k){const db=await this.open();return new Promise((res,rej)=>{const q=db.transaction('kv').objectStore('kv').get(k);q.onsuccess=()=>res(q.result);q.onerror=()=>rej(q.error)})},
+  async set(k,v){const db=await this.open();return new Promise((res,rej)=>{const t=db.transaction('kv','readwrite');t.objectStore('kv').put(v,k);t.oncomplete=()=>res();t.onerror=()=>rej(t.error);t.onabort=()=>rej(t.error)})},
+  async del(k){const db=await this.open();return new Promise((res,rej)=>{const t=db.transaction('kv','readwrite');t.objectStore('kv').delete(k);t.oncomplete=()=>res();t.onerror=()=>rej(t.error)})}
+};
+const FILES_PLAIN=['cap-stage.json','candidatures.csv','cap-stage.precedent.json'],FILES_ENC=['cap-stage.chiffre.json','cap-stage.precedent.chiffre.json'];
+const sig=(a,p)=>a.concat(p).map(d=>d.id+'@'+d.updatedAt).sort().join('|');
+/* ----- Google Drive sync: the user's own account, private app-data folder ----- */
+const GOOGLE_CLIENT_ID='';
+const GD_SCOPE='https://www.googleapis.com/auth/drive.appdata';
+const GD_API='https://www.googleapis.com/drive/v3/files',GD_UP='https://www.googleapis.com/upload/drive/v3/files';
+const GD={
+  get available(){return !!GOOGLE_CLIENT_ID&&STANDALONE&&!!S.store&&S.store.mode==='local'},
+  get embedded(){return /\bElectron\/|\bClaude\//.test(navigator.userAgent)},
+  status:'off',token:'',tokenExp:0,err:'',lastWrite:'',timer:0,chain:Promise.resolve(),ids:{},lastMode:null,
+  meta(){try{return JSON.parse(localStorage.getItem('capavril:drive')||'{}')}catch(e){return {}}},
+  setMeta(o){try{localStorage.setItem('capavril:drive',JSON.stringify(Object.assign(this.meta(),o)))}catch(e){}},
+  init(){
+    if(!this.available)return;
+    const m=this.meta();if(m.connected){this.lastWrite=m.lastWrite||'';this.status='needs-auth'}
+    requestRender();
+  },
+  lib(){
+    if(window.google&&google.accounts&&google.accounts.oauth2)return Promise.resolve();
+    if(!this._lib)this._lib=new Promise((res,rej)=>{const sc=document.createElement('script');sc.src='https://accounts.google.com/gsi/client';sc.async=true;sc.onload=res;
+      sc.onerror=()=>{this._lib=null;rej(new Error('Google est inaccessible (réseau ou bloqueur de publicités).'))};document.head.append(sc)});
+    return this._lib;
+  },
+  async authorize(){
+    await this.lib();
+    await new Promise((res,rej)=>{
+      const c=google.accounts.oauth2.initTokenClient({client_id:GOOGLE_CLIENT_ID,scope:GD_SCOPE,
+        callback:r=>{if(r&&r.access_token){this.token=r.access_token;this.tokenExp=Date.now()+Math.max(60,(+r.expires_in||3600)-120)*1000;res()}else rej(new Error((r&&r.error)||'refus'))},
+        error_callback:e=>rej(Object.assign(new Error((e&&e.type)||'popup'),{popup:true,type:e&&e.type}))});
+      c.requestAccessToken({prompt:''});
+    });
+  },
+  explain(e){
+    if(e&&e.type==='popup_closed')return '';
+    if(e&&e.type==='popup_failed_to_open')return 'La fenêtre de connexion Google n’a pas pu s’ouvrir. Autorisez les fenêtres surgissantes pour ce site, ou ouvrez-le dans votre navigateur habituel.';
+    if(e&&e.message==='access_denied')return '';
+    return (e&&e.message)||'Connexion à Google impossible.';
+  },
+  async api(url,opt){
+    if(!this.token||Date.now()>this.tokenExp){this.status='needs-auth';requestRender();throw Object.assign(new Error('auth'),{auth:true})}
+    const r=await fetch(url,Object.assign({},opt,{headers:Object.assign({Authorization:'Bearer '+this.token},opt&&opt.headers)}));
+    if(r.status===401){this.token='';this.status='needs-auth';requestRender();throw Object.assign(new Error('auth'),{auth:true})}
+    if(!r.ok)throw Object.assign(new Error('Google Drive a répondu : erreur '+r.status+'.'),{status:r.status});
+    return r;
+  },
+  async find(name){
+    const q=encodeURIComponent("name='"+name+"' and trashed=false");
+    const j=await (await this.api(GD_API+'?spaces=appDataFolder&pageSize=10&fields=files(id,name)&q='+q)).json();
+    const f=(j.files||[])[0]||null;if(f)this.ids[name]=f.id;return f;
+  },
+  async read(){
+    for(const name of ['cap-stage.json','cap-stage.chiffre.json']){
+      const f=await this.find(name);
+      if(f){const text=await (await this.api(GD_API+'/'+f.id+'?alt=media')).text();if(text)return {name,text}}
+    }
+    return null;
+  },
+  async put(name,text){
+    let id=this.ids[name]||((await this.find(name))||{}).id;
+    if(id){
+      try{await this.api(GD_UP+'/'+id+'?uploadType=media',{method:'PATCH',headers:{'Content-Type':'application/json; charset=UTF-8'},body:text});return}
+      catch(e){if(e.status!==404)throw e;delete this.ids[name]}
+    }
+    const b='capstage'+Math.random().toString(36).slice(2);
+    const body='--'+b+'\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n'+JSON.stringify({name,parents:['appDataFolder']})+'\r\n--'+b+'\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n'+text+'\r\n--'+b+'--';
+    const r=await this.api(GD_UP+'?uploadType=multipart&fields=id',{method:'POST',headers:{'Content-Type':'multipart/related; boundary='+b},body});
+    try{this.ids[name]=(await r.json()).id}catch(e){}
+  },
+  async remove(name){try{const f=await this.find(name);if(f){await this.api(GD_API+'/'+f.id,{method:'DELETE'});delete this.ids[name]}}catch(e){}},
+  async connect(){
+    try{await this.authorize()}catch(e){const m=this.explain(e);if(m)toast(m);requestRender();return}
+    this.status='ok';this.err='';this.setMeta({connected:true});
+    try{await this.syncStart(true)}catch(e){if(!(e&&e.auth)){this.status='error';this.err=(e&&e.message)||'Synchronisation impossible.'}}
+    requestRender();
+  },
+  async reconnect(){
+    try{await this.authorize()}catch(e){const m=this.explain(e);if(m)toast(m);return}
+    this.status='ok';this.err='';
+    try{await this.syncStart(false)}catch(e){if(!(e&&e.auth)){this.status='error';this.err=(e&&e.message)||'Synchronisation impossible.'}}
+    requestRender();
+  },
+  async syncStart(first){
+    this.status='ok';
+    const f=await this.read();
+    if(!f){await this.writeNow();if(first)toast('Synchronisation Google Drive activée.');return}
+    const b=await openBackup(f.text);
+    if(!b){this.status='paused';requestRender();return}
+    const la=[...S.apps.values()],lp=[...S.projects.values()];
+    if(!la.length&&!lp.length){this.apply(b);toast('Données chargées depuis Google Drive.');return}
+    if(sig(la,lp)===sig(b.apps,b.projects)){this.lastWrite=b.savedAt||this.lastWrite;this.setMeta({lastWrite:this.lastWrite});return}
+    if(first||(b.savedAt&&b.savedAt>(this.lastWrite||''))){
+      const when=b.savedAt?new Intl.DateTimeFormat('fr-FR',{dateStyle:'long',timeStyle:'short'}).format(new Date(b.savedAt)):'date inconnue';
+      const r=await dialog('Deux jeux de données',h('p',{class:'hint'},'Google Drive contient '+plural(b.apps.length,'candidature','candidatures')+' et '+plural(b.projects.length,'projet','projets')+' (sauvegarde du '+when+'). Ce navigateur en contient '+la.length+' et '+lp.length+'. Lequel garder ?'),
+        [{id:'cancel',label:'Décider plus tard'},{id:'local',label:'Garder ce navigateur'},{id:'drive',label:'Charger Google Drive',primary:true}]);
+      if(r==='drive'){this.apply(b);toast('Données chargées depuis Google Drive.')}
+      else if(r==='local'){await this.writeNow();toast('Google Drive a été mis à jour avec les données de ce navigateur.')}
+      else this.status='paused';
+      requestRender();
+    }else{await this.writeNow()}
+  },
+  apply(b){S.store.replaceAll(b);this.lastWrite=b.savedAt||new Date().toISOString();this.setMeta({lastWrite:this.lastWrite})},
+  scheduleWrite(){if(this.status!=='ok')return;clearTimeout(this.timer);this.timer=setTimeout(()=>{this.timer=0;this.writeNow()},2500)},
+  writeNow(){
+    if(this.status!=='ok'||!S.store||S.store.mode!=='local')return Promise.resolve();
+    this.chain=this.chain.then(()=>this._write()).catch(()=>{});return this.chain;
+  },
+  async _write(){
+    try{
+      const b=S.store.backup(),locked=S.store.isLocked();
+      const name=locked?'cap-stage.chiffre.json':'cap-stage.json';
+      await this.put(name,locked?await S.store.encryptBackup(b):JSON.stringify(b));
+      if(this.lastMode!==locked){await this.remove(locked?'cap-stage.json':'cap-stage.chiffre.json');this.lastMode=locked}
+      this.lastWrite=b.savedAt;this.err='';this.setMeta({lastWrite:this.lastWrite});
+    }catch(e){
+      if(e&&e.auth)this.status='needs-auth';else{this.status='error';this.err=(e&&e.message)||'Écriture impossible.'}
+    }
+    requestRender();
+  },
+  async forget(removeRemote){
+    clearTimeout(this.timer);
+    if(removeRemote&&this.token&&Date.now()<this.tokenExp){await this.remove('cap-stage.json');await this.remove('cap-stage.chiffre.json')}
+    try{if(this.token&&window.google&&google.accounts)google.accounts.oauth2.revoke(this.token,()=>{})}catch(e){}
+    this.token='';this.tokenExp=0;this.ids={};this.lastMode=null;
+    try{localStorage.removeItem('capavril:drive')}catch(e){}
+    this.status='off';this.lastWrite='';requestRender();
+  }
+};
+function drivePanel(){
+  if(!GD.available)return null;
+  const st=GD.status,fmt=iso=>iso?new Intl.DateTimeFormat('fr-FR',{dateStyle:'short',timeStyle:'medium'}).format(new Date(iso)):'jamais';
+  const preload=()=>GD.lib().catch(()=>{});
+  const signIn=(label,fn)=>h('button',{class:'btn primary',type:'button',onpointerenter:preload,onfocus:preload,ontouchstart:preload,onclick:fn},label);
+  let body;
+  if(GD.embedded) body=h('p',{class:'hint'},'La fenêtre de connexion Google ne s’ouvre pas dans le navigateur intégré à l’application Claude. Ouvrez ce site dans Chrome, Safari, Firefox ou Edge pour activer la synchronisation.');
+  else if(st==='off') body=h('div',null,
+    h('p',{class:'hint'},'Connectez votre compte Google pour enregistrer automatiquement vos données dans un espace privé de votre Google Drive, réservé à cette application. Vous les retrouvez sur tous vos appareils et tous vos navigateurs. Le site n’accède à aucun de vos autres fichiers, et son auteur ne voit jamais vos données.'),
+    h('div',{class:'quick'},signIn('Se connecter avec Google',()=>GD.connect())));
+  else body=h('div',null,
+    h('p',{class:'hint'},st==='ok'?[h('span',{class:'pill ok'},'Actif'),' Dernière synchronisation : '+fmt(GD.lastWrite)+'.']:
+      st==='needs-auth'?'En pause : reconnectez-vous à Google pour reprendre (cela arrive environ toutes les heures et à chaque nouvelle session).':
+      st==='paused'?'En pause.':'Erreur : '+(GD.err||'inconnue')+'.'),
+    st==='ok'&&h('p',{class:'hint'},S.store.isLocked()?'Vos données sont chiffrées avant l’envoi : Google ne peut pas les lire.':'Vos données sont enregistrées dans votre Drive, sans chiffrement supplémentaire. Activez le mot de passe plus bas pour qu’elles soient chiffrées avant l’envoi.'),
+    h('div',{class:'quick'},
+      st==='ok'&&h('button',{class:'btn',type:'button',onclick:async()=>{await GD.writeNow();toast('Google Drive à jour.')}},'Synchroniser maintenant'),
+      st==='ok'&&h('button',{class:'btn',type:'button',onclick:()=>GD.syncStart(true).catch(()=>{})},'Charger depuis Google Drive'),
+      st==='needs-auth'&&signIn('Se reconnecter',()=>GD.reconnect()),
+      st==='paused'&&h('button',{class:'btn primary',type:'button',onclick:()=>GD.syncStart(true).catch(()=>{})},'Reprendre'),
+      st==='error'&&signIn('Réessayer',()=>GD.reconnect()),
+      h('button',{class:'btn',type:'button',onclick:async()=>{await GD.forget(false);toast('Google Drive déconnecté. Vos données restent dans votre Drive.')}},'Déconnecter')));
+  return h('section',{class:'panel'},h('h2',null,'Synchronisation Google Drive'),body);
+}
+const FS={
+  get supported(){return !this.broken&&!!(window.showDirectoryPicker&&window.indexedDB)&&!/\bElectron\/|\bClaude\//.test(navigator.userAgent)},
+  broken:false,handle:null,status:'off',parentName:'',lastWrite:'',err:'',timer:0,chain:Promise.resolve(),lastBackup:0,
+  meta(){try{return JSON.parse(localStorage.getItem('capavril:folder')||'{}')}catch(e){return {}}},
+  setMeta(o){try{localStorage.setItem('capavril:folder',JSON.stringify(Object.assign(this.meta(),o)))}catch(e){}},
+  async init(){
+    if(!this.supported||!S.store||S.store.mode!=='local')return;
+    try{
+      const hd=await idb.get('handle');if(!hd)return;
+      this.handle=hd;const m=this.meta();this.parentName=m.parentName||'';this.lastWrite=m.lastWrite||'';
+      if((await hd.queryPermission({mode:'readwrite'}))==='granted'){this.status='ok';await this.syncStart(false)}else this.status='needs-permission';
+    }catch(e){this.status='error';this.err='Le dossier n’est plus accessible.'}
+    requestRender();
+  },
+  async connect(){
+    let parent;const t0=Date.now();
+    try{parent=await window.showDirectoryPicker({id:'cap-stage',mode:'readwrite',startIn:'documents'})}
+    catch(e){
+      if(e&&e.name==='AbortError'&&Date.now()-t0>=800)return;
+      this.broken=true;requestRender();
+      toast('Ce navigateur n’ouvre pas le sélecteur de dossier. Ouvrez le site dans Chrome ou Edge sur ordinateur.');
+      return;
+    }
+    try{
+      const dir=await parent.getDirectoryHandle('Cap Stage',{create:true});
+      this.handle=dir;this.parentName=parent.name;
+      try{await idb.set('handle',dir)}catch(e){toast('Ce navigateur ne peut pas mémoriser le dossier : il faudra le choisir à chaque visite.')}
+      this.setMeta({parentName:parent.name});this.status='ok';this.err='';
+      await this.syncStart(true);
+    }catch(e){this.status='error';this.err=(e&&e.message)||'Impossible de créer le dossier.'}
+    requestRender();
+  },
+  async reconnect(){
+    try{if((await this.handle.requestPermission({mode:'readwrite'}))!=='granted')return;this.status='ok';this.err='';await this.syncStart(false)}
+    catch(e){this.status='error';this.err='Le dossier n’est plus accessible.'}
+    requestRender();
+  },
+  async readFile(){
+    for(const name of ['cap-stage.json','cap-stage.chiffre.json']){
+      try{const fh=await this.handle.getFileHandle(name);const text=await (await fh.getFile()).text();if(text)return {name,text}}
+      catch(e){if(!e||e.name!=='NotFoundError')throw e}
+    }
+    return null;
+  },
+  async put(name,text){const fh=await this.handle.getFileHandle(name,{create:true});const w=await fh.createWritable();await w.write(text);await w.close()},
+  async syncStart(first){
+    this.status='ok';
+    const f=await this.readFile();
+    if(!f){await this.writeNow();if(first)toast('Sauvegarde automatique activée : le dossier « Cap Stage » a été créé.');return}
+    const b=await openBackup(f.text);
+    if(!b){this.status='paused';requestRender();return}
+    const localApps=[...S.apps.values()],localProjects=[...S.projects.values()];
+    if(!localApps.length&&!localProjects.length){this.apply(b);toast('Données chargées depuis le dossier.');return}
+    if(sig(localApps,localProjects)===sig(b.apps,b.projects)){this.lastWrite=b.savedAt||this.lastWrite;this.setMeta({lastWrite:this.lastWrite});return}
+    if(first||(b.savedAt&&b.savedAt>(this.lastWrite||''))){
+      const when=b.savedAt?new Intl.DateTimeFormat('fr-FR',{dateStyle:'long',timeStyle:'short'}).format(new Date(b.savedAt)):'date inconnue';
+      const r=await dialog('Deux jeux de données',h('p',{class:'hint'},'Le dossier contient '+plural(b.apps.length,'candidature','candidatures')+' et '+plural(b.projects.length,'projet','projets')+' (sauvegarde du '+when+'). Ce navigateur en contient '+localApps.length+' et '+localProjects.length+'. Lequel garder ?'),
+        [{id:'cancel',label:'Décider plus tard'},{id:'local',label:'Garder ce navigateur'},{id:'folder',label:'Charger le dossier',primary:true}]);
+      if(r==='folder'){this.apply(b);toast('Données chargées depuis le dossier.')}
+      else if(r==='local'){await this.writeNow();toast('Le dossier a été mis à jour avec les données de ce navigateur.')}
+      else{this.status='paused'}
+      requestRender();
+    }else{await this.writeNow()}
+  },
+  apply(b){S.store.replaceAll(b);this.lastWrite=b.savedAt||new Date().toISOString();this.setMeta({lastWrite:this.lastWrite})},
+  scheduleWrite(){if(this.status!=='ok')return;clearTimeout(this.timer);this.timer=setTimeout(()=>{this.timer=0;this.writeNow()},1000)},
+  writeNow(){
+    if(this.status!=='ok'||!S.store||S.store.mode!=='local')return Promise.resolve();
+    this.chain=this.chain.then(()=>this._write()).catch(()=>{});return this.chain;
+  },
+  async _write(){
+    try{
+      const b=S.store.backup(),locked=S.store.isLocked();
+      const name=locked?FILES_ENC[0]:FILES_PLAIN[0];
+      const text=locked?await S.store.encryptBackup(b):JSON.stringify(b,null,2);
+      if(Date.now()-this.lastBackup>300000){
+        try{const old=await (await (await this.handle.getFileHandle(name)).getFile()).text();if(old){await this.put(locked?FILES_ENC[1]:FILES_PLAIN[2],old);this.lastBackup=Date.now()}}catch(e){}
+      }
+      await this.put(name,text);
+      if(!locked)await this.put('candidatures.csv',csvText());
+      for(const n of locked?FILES_PLAIN:FILES_ENC){try{await this.handle.removeEntry(n)}catch(e){}}
+      this.lastWrite=b.savedAt;this.err='';this.setMeta({lastWrite:this.lastWrite});
+    }catch(e){
+      if(e&&e.name==='NotAllowedError')this.status='needs-permission';else{this.status='error';this.err=(e&&e.message)||'Écriture impossible.'}
+    }
+    requestRender();
+  },
+  async forget(removeFiles){
+    clearTimeout(this.timer);
+    if(removeFiles&&this.handle){for(const n of FILES_PLAIN.concat(FILES_ENC)){try{await this.handle.removeEntry(n)}catch(e){}}}
+    try{await idb.del('handle')}catch(e){}
+    try{localStorage.removeItem('capavril:folder')}catch(e){}
+    this.handle=null;this.status='off';this.lastWrite='';requestRender();
+  }
+};
+S.onPersist=()=>{FS.scheduleWrite();GD.scheduleWrite()};
+document.addEventListener('visibilitychange',()=>{if(document.hidden&&FS.status==='ok'&&FS.timer){clearTimeout(FS.timer);FS.timer=0;FS.writeNow()}});
+function backupReminder(){
+  const n=S.apps.size+S.projects.size;if(!n)return '';
+  if(GD.available&&GD.status!=='off')return '';
+  let last=0,snooze=0;try{last=+localStorage.getItem('capavril:lastExport')||0;snooze=+localStorage.getItem('capavril:snooze')||0}catch(e){}
+  const now=Date.now();
+  if(now<snooze||(last&&now-last<7*864e5)||(!last&&n<3))return '';
+  return h('div',{class:'banner info',role:'status',style:'display:flex;gap:12px;align-items:center;flex-wrap:wrap'},
+    h('span',{style:'flex:1;min-width:200px'},(last?'Dernière sauvegarde exportée il y a '+Math.round((now-last)/864e5)+' jours.':'Vous n’avez encore exporté aucune sauvegarde.')+' Vos données ne vivent que dans ce navigateur.'),
+    h('button',{class:'btn sm',type:'button',onclick:exportJson},icon('download',14),'Exporter maintenant'),
+    h('button',{class:'btn sm ghost',type:'button',onclick:()=>{try{localStorage.setItem('capavril:snooze',String(Date.now()+3*864e5))}catch(e){}renderMain()}},'Plus tard'));
+}
+function gdBanner(){
+  if(!GD.available||GD.status==='off'||GD.status==='ok')return '';
+  const msg={'needs-auth':'La synchronisation Google Drive est en pause : reconnectez-vous pour la reprendre.','paused':'La synchronisation Google Drive est en pause.','error':'Synchronisation Google Drive impossible : '+(GD.err||'erreur inconnue')+'.'}[GD.status];
+  const act={'needs-auth':['Se reconnecter',()=>GD.reconnect()],'paused':['Reprendre',()=>GD.syncStart(true)],'error':['Réessayer',()=>GD.reconnect()]}[GD.status];
+  return h('div',{class:'banner',role:'status',style:'display:flex;gap:12px;align-items:center;flex-wrap:wrap'},h('span',{style:'flex:1;min-width:200px'},msg),
+    h('button',{class:'btn sm',type:'button',onpointerenter:()=>GD.lib().catch(()=>{}),onfocus:()=>GD.lib().catch(()=>{}),onclick:act[1]},act[0]),
+    h('button',{class:'btn sm ghost',type:'button',onclick:()=>go('settings')},'Réglages'));
+}
+function fsBanner(){const a=fsBannerFolder(),b=gdBanner();return (a||b)?h('div',null,a,b):''}
+function fsBannerFolder(){
+  if(!STANDALONE||FS.status==='ok')return '';
+  if(FS.status==='off')return backupReminder();
+  const msg={'needs-permission':'La sauvegarde automatique est en pause : le navigateur demande de réautoriser l’accès au dossier.','paused':'La sauvegarde automatique est en pause.','error':'Sauvegarde automatique impossible : '+(FS.err||'erreur inconnue')+'.'}[FS.status];
+  const act={'needs-permission':['Reconnecter le dossier',()=>FS.reconnect()],'paused':['Reprendre',()=>FS.syncStart(true)],'error':['Réessayer',()=>FS.reconnect()]}[FS.status];
+  return h('div',{class:'banner',role:'status',style:'display:flex;gap:12px;align-items:center;flex-wrap:wrap'},h('span',{style:'flex:1;min-width:200px'},msg),h('button',{class:'btn sm',type:'button',onclick:act[1]},act[0]),
+    h('button',{class:'btn sm ghost',type:'button',onclick:()=>go('settings')},'Réglages'));
+}
+function folderPanel(){
+  if(!STANDALONE||!S.store||S.store.mode!=='local')return null;
+  const st=FS.status,fmt=iso=>iso?new Intl.DateTimeFormat('fr-FR',{dateStyle:'short',timeStyle:'medium'}).format(new Date(iso)):'jamais';
+  const where='« Cap Stage »'+(FS.parentName?' dans « '+FS.parentName+' »':'');
+  let body;
+  if(!FS.supported){
+    const url=location.origin+location.pathname;
+    body=h('div',null,h('p',{class:'hint'},'Ce navigateur ne permet pas de choisir un dossier. C’est le cas de Safari, de Firefox, des téléphones et du navigateur intégré à l’application Claude. Pour activer la sauvegarde automatique, ouvrez ce site dans Chrome ou Edge sur ordinateur. En attendant, exportez régulièrement une sauvegarde.'),
+      h('div',{class:'quick'},h('code',{class:'chip',style:'user-select:all'},url),
+        h('button',{class:'btn sm',type:'button',onclick:async()=>{try{await navigator.clipboard.writeText(url);toast('Lien copié.')}catch(e){toast('Copiez le lien affiché ci-dessus.')}}},'Copier le lien')));
+  }
+  else if(st==='off') body=h('div',null,
+    h('p',{class:'hint'},'Choisissez un emplacement : un dossier « Cap Stage » y sera créé automatiquement et vos données y seront enregistrées à chaque modification. Elles survivent à un nettoyage du navigateur, et se synchronisent entre vos appareils si l’emplacement est dans iCloud Drive, OneDrive, Dropbox ou Google Drive.'),
+    h('div',{class:'quick'},h('button',{class:'btn primary',type:'button',onclick:()=>FS.connect()},icon('file',14),'Choisir un emplacement')));
+  else body=h('div',null,
+    h('p',{class:'hint'},st==='ok'?[h('span',{class:'pill ok'},'Actif'),' Dossier '+where+'. Dernière sauvegarde : '+fmt(FS.lastWrite)+'.']:
+      st==='needs-permission'?'En pause : le navigateur demande de réautoriser l’accès au dossier '+where+'. Cela arrive à chaque session, sauf si vous choisissez « Autoriser à chaque visite ».':
+      st==='paused'?'En pause. Dossier '+where+'.':'Erreur : '+(FS.err||'inconnue')+'.'),
+    st==='ok'&&h('p',{class:'hint'},S.store.isLocked()?'Les fichiers du dossier sont chiffrés (cap-stage.chiffre.json).':'Les fichiers du dossier (cap-stage.json et candidatures.csv) sont lisibles par toute personne ayant accès à ce dossier. Activez le mot de passe plus bas pour les chiffrer.'),
+    h('div',{class:'quick'},
+      st==='ok'&&h('button',{class:'btn',type:'button',onclick:async()=>{await FS.writeNow();toast('Dossier à jour.')}},'Enregistrer maintenant'),
+      st==='ok'&&h('button',{class:'btn',type:'button',onclick:()=>FS.syncStart(true)},'Charger depuis le dossier'),
+      st==='needs-permission'&&h('button',{class:'btn primary',type:'button',onclick:()=>FS.reconnect()},'Reconnecter le dossier'),
+      st==='paused'&&h('button',{class:'btn primary',type:'button',onclick:()=>FS.syncStart(true)},'Reprendre'),
+      st==='error'&&h('button',{class:'btn primary',type:'button',onclick:()=>FS.reconnect()},'Réessayer'),
+      h('button',{class:'btn',type:'button',onclick:async()=>{await FS.forget(false);toast('Dossier déconnecté. Les fichiers restent dans le dossier.')}},'Déconnecter')));
+  return h('section',{class:'panel'},h('h2',null,'Sauvegarde automatique dans un dossier'),body);
+}
+function lockPanel(){
+  if(!STANDALONE||!(window.crypto&&crypto.subtle)||!S.store||S.store.mode!=='local') return null;
+  const on=S.store.isLocked();let p1='',p2='';
+  const err=h('p',{class:'hint',role:'alert',style:'color:var(--bad);margin:0'});
+  const form=h('form',{class:'lockform',onsubmit:async e=>{e.preventDefault();err.textContent='';
+    if(p1.length<8){err.textContent='Choisissez au moins 8 caractères.';return}
+    if(p1!==p2){err.textContent='Les deux mots de passe ne correspondent pas.';return}
+    try{await S.store.enableLock(p1);FS.scheduleWrite();toast('Verrouillage activé. Notez bien votre mot de passe.');renderMain()}catch(x){err.textContent='Impossible d’activer le verrouillage sur cet appareil.'}}},
+    h('div',{class:'field'},h('label',{for:'lk-1'},'Nouveau mot de passe'),h('input',{class:'input',id:'lk-1',type:'password',autocomplete:'new-password',oninput:e=>p1=e.target.value})),
+    h('div',{class:'field'},h('label',{for:'lk-2'},'Confirmer le mot de passe'),h('input',{class:'input',id:'lk-2',type:'password',autocomplete:'new-password',oninput:e=>p2=e.target.value})),
+    err,h('div',null,h('button',{class:'btn primary',type:'submit'},icon('lock',14),'Activer le verrouillage')));
+  return h('section',{class:'panel'},h('h2',null,'Verrouillage par mot de passe'),
+    on?h('div',null,h('p',{class:'hint'},'Activé : vos données sont chiffrées sur cet appareil (AES-256). Le mot de passe est demandé à chaque ouverture.'),
+      h('div',{class:'quick'},h('button',{class:'btn',type:'button',onclick:()=>location.reload()},icon('lock',14),'Verrouiller maintenant'),
+        h('button',{class:'btn',type:'button',onclick:async()=>{await S.store.disableLock();FS.scheduleWrite();toast('Verrouillage désactivé : vos données sont lisibles sans mot de passe.');renderMain()}},'Désactiver')))
+    :h('div',null,h('p',{class:'hint'},'Optionnel, utile sur un ordinateur partagé. Vos données sont chiffrées dans le navigateur avec un mot de passe que vous seul connaissez. Si vous l’oubliez, elles sont irrécupérables : exportez une sauvegarde.'),form));
+}
+function viewSettings(){
+  const p=S.prefs;let pt=0;
+  const pf=(id,label,key,type,ph)=>h('div',{class:'field'},h('label',{for:id},label),h('input',{class:'input',id,type,placeholder:ph||'',value:p[key]||'',autocomplete:'off',oninput:e=>{p[key]=e.target.value;clearTimeout(pt);pt=setTimeout(savePrefs,500)}}));
+  const dates=h('section',{class:'panel'},h('h2',null,'Mes dates'),h('p',{class:'hint'},'Elles alimentent le compte à rebours de l’aperçu.'),
+    h('div',{class:'fgrid'},pf('pf-start','Début de stage visé','targetStart','date'),h('div'),pf('pf-label','Événement à suivre','eventLabel','text','Forum, salon, date limite…'),pf('pf-date','Date de l’événement','eventDate','date')));
+  const file=h('input',{type:'file',id:'imp-file',accept:'.json,application/json',hidden:true,onchange:e=>{const f=e.target.files[0];if(f)importFile(f);e.target.value=''}});
+  const canExport=!!S.dl||STANDALONE;
+  const data=h('section',{class:'panel'},h('h2',null,'Mes données'),
+    h('p',{class:'hint'},STANDALONE?'Vos candidatures et projets sont enregistrés dans ce navigateur, sur cet appareil. '+(GD.available?'Ce site n’envoie rien à un serveur, sauf si vous activez la synchronisation Google Drive ci-dessous. ':'Ce site n’envoie rien à un serveur. ')+'Personne d’autre ne peut les lire. Pour les protéger d’un nettoyage du navigateur ou les retrouver ailleurs, activez '+(GD.available?'la synchronisation Google Drive, ':'')+'la sauvegarde automatique dans un dossier (Chrome, Edge) ou exportez puis importez une sauvegarde.':'Vos données sont enregistrées dans votre compte Claude, réservées à son propriétaire.'),
+    h('div',{class:'quick'},canExport&&h('button',{class:'btn',type:'button',onclick:exportJson},icon('download',14),'Exporter la sauvegarde (JSON)'),canExport&&h('button',{class:'btn',type:'button',onclick:exportCsv},icon('download',14),'Exporter les candidatures (CSV)'),
+      h('button',{class:'btn wr',type:'button',onclick:()=>file.click()},icon('upload',14),'Importer une sauvegarde'),file),
+    h('small',{class:'muted'},'Importer remplace les fiches de même identifiant et conserve les autres.'),
+    STANDALONE&&S.persisted===false?h('p',{class:'hint',style:'margin-top:10px'},'Ce navigateur peut effacer ces données s’il manque de place ou si vous ne visitez pas le site pendant longtemps (Safari : environ 7 jours). Exportez régulièrement une sauvegarde'+(GD.available?' ou activez Google Drive.':'.')):null,
+    STANDALONE?h('p',{class:'hint',style:'margin:10px 0 0'},h('a',{href:'confidentialite.html',target:'_blank',rel:'noopener noreferrer'},'Politique de confidentialité')):null);
+  const wipe=h('section',{class:'panel'},h('h2',null,'Effacer mes données'),h('p',{class:'hint'},'Supprime définitivement toutes vos fiches, y compris les fichiers du dossier de sauvegarde automatique s’il est connecté. Pensez à exporter une sauvegarde avant.'),armed('Tout effacer',wipeAll));
+  return h('div',null,head('Réglages','Vos dates, vos sauvegardes et la protection de vos données.'),h('div',{class:'stack',style:'max-width:760px'},dates,data,drivePanel(),folderPanel(),lockPanel(),wipe));
+}
+function viewUnlock(){
+  let pw='',busy=false;
+  const err=h('p',{class:'hint',role:'alert',style:'color:var(--bad);margin:0'});
+  return h('form',{class:'panel lock',onsubmit:async e=>{e.preventDefault();if(busy)return;busy=true;err.textContent='';
+      try{await unlockVault(pw)}catch(x){err.textContent='Mot de passe incorrect.';busy=false}}},
+    h('h2',{style:'justify-content:flex-start;gap:8px'},icon('lock',18),'Données verrouillées'),
+    h('p',{class:'hint'},'Saisissez votre mot de passe pour déchiffrer vos données. Elles ne quittent jamais cet appareil.'),
+    h('div',{class:'field'},h('label',{for:'unlock-pw'},'Mot de passe'),h('input',{class:'input',id:'unlock-pw',type:'password',autocomplete:'current-password',oninput:e=>pw=e.target.value})),
+    err,h('div',{class:'acts',style:'display:flex;justify-content:flex-end'},h('button',{class:'btn primary',type:'submit'},'Déverrouiller')));
+}
+
+/* ---------- drawer ---------- */
+function openDrawer(kind,id,section){
+  const src=S[kind].get(id);if(!src)return;
+  if(D)closeDrawer();
+  D={kind,id,doc:clone(src),dirty:false,saving:false,pending:false,timer:0,opener:document.activeElement};
+  buildDrawer();
+  if(section){const s=$('#s-'+section);if(s)s.scrollIntoView()}
+}
+function closeDrawer(skipFlush){
+  if(!D)return;
+  if(!skipFlush)flush();
+  clearTimeout(D.timer);clearTimeout(D.bt);
+  const o=D.opener;D=null;
+  const l=$('#layer');l.querySelectorAll('.drawer,.scrim:not(.top)').forEach(n=>n.remove());
+  if(o&&o.isConnected)try{o.focus()}catch(e){}
+  S.rev++;requestRender();
+}
+function rebuildDrawer(){const b=$('.dbody');const st=b?b.scrollTop:0;$('#layer').querySelectorAll('.drawer,.scrim:not(.top)').forEach(n=>n.remove());buildDrawer();const nb=$('.dbody');if(nb)nb.scrollTop=st}
+function buildDrawer(){
+  const isApp=D.kind==='apps',d=D.doc;
+  const secs=isApp?appSections():projectSections();
+  const head=h('div',{class:'dhead'},
+    h('div',{class:'row1'},
+      h('input',{class:'title-in',id:'f-dtitle',type:'text',autocomplete:'off',placeholder:isApp?'Nom de l’entreprise':'Nom du projet','aria-label':isApp?'Nom de l’entreprise':'Nom du projet',value:isApp?d.company:d.name,
+        oninput:e=>{d[isApp?'company':'name']=e.target.value;touch()}}),
+      h('button',{class:'xbtn',type:'button','aria-label':'Fermer la fiche',onclick:()=>closeDrawer()},icon('x',18))),
+    h('div',{class:'row2'},isApp?appHeadControls():projectHeadControls(),h('span',{class:'save',id:'savestate',role:'status'},'')));
+  const body=h('div',{class:'dbody'},secs);
+  const foot=h('div',{class:'dfoot'},
+    h('button',{class:'btn danger sm wr',type:'button',onclick:e=>{
+      const b=e.currentTarget;
+      if(!b.classList.contains('armed')){b.classList.add('armed');b.replaceChildren(icon('trash',14),'Confirmer la suppression');setTimeout(()=>{if(b.isConnected){b.classList.remove('armed');b.replaceChildren(icon('trash',14),'Supprimer')}},4000);return}
+      const id=D.id,kind=D.kind;closeDrawer(true);removeDoc(kind,id);toast('Fiche supprimée.')},},icon('trash',14),'Supprimer'),
+    h('button',{class:'btn primary',type:'button',onclick:()=>closeDrawer()},'Terminer'));
+  const aside=h('aside',{class:'drawer',role:'dialog','aria-modal':'true','aria-label':isApp?'Fiche candidature':'Fiche projet'},head,
+    h('nav',{class:'jump','aria-label':'Aller à'},(isApp?APP_JUMP:PROJ_JUMP).map(([id,l])=>h('button',{type:'button',onclick:()=>{const s=$('#s-'+id);if(s)s.scrollIntoView({behavior:'smooth',block:'start'})}},l))),body,foot);
+  $('#layer').append(h('div',{class:'scrim',onclick:()=>closeDrawer()}),aside);
+  refreshSuggestions();
+  if(!S.canWrite)aside.querySelectorAll('input,textarea,select').forEach(n=>n.disabled=true);
+  if(!d.company&&!d.name)$('#f-dtitle').focus();else aside.focus&&$('.drawer .xbtn').focus();
+}
+const APP_JUMP=[['synthese','Synthèse'],['etape','Étape'],['entreprise','Entreprise'],['besoin','Besoin'],['stage','Stage'],['competences','Compétences'],['dossier','Dossier'],['contacts','Contacts'],['projets','Projets'],['historique','Historique'],['notes','Notes']];
+const PROJ_JUMP=[['identite','Identité'],['resume','Résumé'],['techno','Technologies'],['contrib','Contribution'],['liens','Liens'],['usage','Utilisation']];
+
+/* form builders (bound to D.doc) */
+function inp(id,label,key,o){o=o||{};const d=o.obj||D.doc;
+  return h('div',{class:'field'+(o.wide?' wide':'')},h('label',{for:'f-'+id},label),
+    h('input',{class:'input',id:'f-'+id,type:o.type||'text',value:d[key]==null?'':d[key],placeholder:o.ph||'',autocomplete:'off',min:o.min,inputmode:o.num?'decimal':null,
+      oninput:e=>{d[key]=o.num?(e.target.value===''?'':Number(e.target.value)):e.target.value;touch()}}),o.hint&&h('small',null,o.hint));
+}
+function txt(id,label,key,o){o=o||{};const d=D.doc;
+  return h('div',{class:'field wide'},h('label',{for:'f-'+id},label),h('textarea',{class:'textarea',id:'f-'+id,placeholder:o.ph||'',style:o.rows?'min-height:'+o.rows*22+'px':null,value:d[key]||'',oninput:e=>{d[key]=e.target.value;touch()}}),o.hint&&h('small',null,o.hint));
+}
+function sel(id,label,key,opts,o){o=o||{};const d=D.doc;
+  return h('div',{class:'field'+(o.wide?' wide':'')},h('label',{for:'f-'+id},label),h('select',{class:'select',id:'f-'+id,value:d[key]||'',onchange:e=>{d[key]=e.target.value;touch()}},opts.map(x=>typeof x==='string'?h('option',{value:x},x):h('option',{value:x[0]},x[1]))));
+}
+function sec(id,title,hint,...kids){return h('section',{class:'sec',id:'s-'+id},h('header',null,h('h3',null,title),hint&&h('small',null,hint)),kids)}
+function tagInput(id,label,arr,o){
+  o=o||{};const keyArr=o.keyArr;
+  const wrap=h('div',{class:'tags'});
+  const input=h('input',{class:'tag-in',id,type:'text',list:o.list||'skills-list',autocomplete:'off','aria-label':label,placeholder:arr.length?'':'Ajouter puis Entrée'});
+  const kIdx=t=>keyArr?keyArr.findIndex(k=>norm(k)===norm(t)):-1;
+  const draw=()=>{const idx=ownIndex();wrap.replaceChildren(...arr.map((t,i)=>{
+    const c=o.cov?(idx.has(norm(t))?'ok':'gap'):'',key=kIdx(t)>=0;
+    return h('span',{class:'chip '+c+(key?' key':''),title:o.cov?(c==='ok'?'Démontrée dans : '+idx.get(norm(t)).map(p=>p.name||'Sans nom').join(', '):'Pas encore démontrée dans vos projets'):null},
+      keyArr&&h('button',{type:'button',class:'star','aria-pressed':String(key),'aria-label':(key?'Retirer des compétences clés : ':'Marquer comme compétence clé : ')+t,title:'Compétence clé',
+        onclick:()=>{const j=kIdx(t);if(j>=0)keyArr.splice(j,1);else keyArr.push(t);touch();draw()}},icon('star',12,key)),
+      t,
+      h('button',{type:'button','aria-label':'Retirer '+t,onclick:()=>{const j=kIdx(t);if(j>=0)keyArr.splice(j,1);arr.splice(i,1);touch();draw()}},icon('x',12)))}),input)};
+  const add=(v,focus)=>{String(v).split(/[,;\n]/).map(x=>x.trim()).filter(Boolean).forEach(x=>{if(!arr.some(y=>norm(y)===norm(x)))arr.push(x)});input.value='';touch();draw();if(focus)input.focus()};
+  input.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===','){e.preventDefault();if(input.value.trim())add(input.value,true)}else if(e.key==='Backspace'&&!input.value&&arr.length){const t=arr.pop();const j=kIdx(t);if(j>=0)keyArr.splice(j,1);touch();draw();input.focus()}});
+  input.addEventListener('blur',()=>{if(input.value.trim())add(input.value,false)});
+  draw();return wrap;
+}
+function listEditor(key,blank,renderRow,quick,addLabel){
+  const arr=D.doc[key],box=h('div'),list=h('div');
+  const draw=()=>list.replaceChildren(...arr.map((it,i)=>{it.id=it.id||uid();return renderRow(it,()=>{arr.splice(i,1);touch();draw()})}));
+  const add=p=>{arr.push(Object.assign({id:uid()},blank(),p||{}));touch();draw();const last=list.lastElementChild;if(last){const f=last.querySelector('input,select');if(f)f.focus()}};
+  box.append(h('div',{class:'quick wr'},(quick||[]).map(([l,p])=>h('button',{class:'btn sm',type:'button',onclick:()=>add(p)},icon('plus',13),l)),!quick&&h('button',{class:'btn sm',type:'button',onclick:()=>add()},icon('plus',13),addLabel)),list);
+  draw();return box;
+}
+const mini=(it,k,label,o)=>{o=o||{};return h('input',{class:'input',id:'r-'+it.id+'-'+k,type:o.type||'text','aria-label':label,placeholder:o.ph||label,autocomplete:'off',value:it[k]||'',oninput:e=>{it[k]=e.target.value;touch()}})};
+const miniSel=(it,k,label,opts)=>h('select',{class:'select',id:'r-'+it.id+'-'+k,'aria-label':label,value:it[k]||'',onchange:e=>{it[k]=e.target.value;touch()}},opts.map(([v,l])=>h('option',{value:v},l)));
+const rmBtn=fn=>h('button',{class:'xbtn wr',type:'button','aria-label':'Supprimer cette ligne',onclick:fn},icon('trash',15));
+
+/* application drawer */
+function appHeadControls(){
+  const d=D.doc;
+  const st=h('select',{class:'select pill-select',id:'f-status','aria-label':'Statut',dataset:{st:d.status},value:d.status,onchange:e=>{applyStatus(d,e.target.value);e.target.dataset.st=d.status;touch();
+      const ev=$('#ev-list');if(ev&&ev._redraw)ev._redraw();const ap=$('#f-appliedAt');if(ap)ap.value=d.appliedAt||''}},STAT.map(([k,l])=>h('option',{value:k},l)));
+  st.style.cssText='font-weight:600;color:color-mix(in srgb,var(--c) 78%,var(--ink));background-color:color-mix(in srgb,var(--c) 14%,var(--surface));border-color:color-mix(in srgb,var(--c) 32%,var(--surface));border-radius:999px;padding-top:4px;padding-bottom:4px';
+  const pr=h('select',{class:'select',id:'f-priority','aria-label':'Priorité',value:d.priority,onchange:e=>{d.priority=e.target.value;touch()}},PRIO.map(([k,l])=>h('option',{value:k},'Priorité '+l.toLowerCase())));
+  const link=href(d.offerUrl);
+  return [st,pr,link&&h('a',{class:'btn sm',href:link,target:'_blank',rel:'noopener noreferrer',referrerpolicy:'no-referrer'},icon('ext',14),'Voir l’offre')];
+}
+function refreshBrief(){if(!D||D.kind!=='apps')return;const old=$('#s-synthese');if(old)old.replaceWith(briefEl())}
+function briefEl(){
+  const d=D.doc,idx=ownIndex(),cv=coverage(d),f=followUp(d);
+  const jump=id=>()=>{const t=$('#s-'+id);if(t)t.scrollIntoView({behavior:'smooth',block:'start'})};
+  const fill=(t,id)=>h('button',{class:'bf-empty wr',type:'button',onclick:jump(id)},'+ '+t);
+  const blk=(label,body,wide)=>h('div',{class:'bf-b'+(wide?' wide':'')},h('span',{class:'eyebrow'},label),body);
+  const kv=rows=>{const r=rows.filter(x=>x[1]!==''&&x[1]!=null&&x[1]!==false);return r.length?h('dl',{class:'kvs'},r.map(x=>[h('dt',null,x[0]),h('dd',null,x[1])])):null};
+  const skills=orderedSkills(d),keyN=skills.filter(x=>isKey(d,x)).length,keyCov=skills.filter(x=>isKey(d,x)&&idx.has(norm(x))).length;
+  const sc=x=>h('span',{class:'chip '+(idx.has(norm(x))?'ok':'gap')+(isKey(d,x)?' key':''),title:idx.has(norm(x))?'Démontrée dans : '+idx.get(norm(x)).map(p=>p.name||'Sans nom').join(', '):'Pas encore démontrée dans vos projets'},isKey(d,x)&&icon('star',12,true),x);
+  const projects=d.projectIds.map(id=>S.projects.get(id)).filter(Boolean);
+  const link=href(d.offerUrl);
+  const mode=(WORK.find(w=>w[0]===d.workMode)||[])[1];
+  const ctx=[d.sector,d.location].filter(Boolean).join(' · ');
+  return h('section',{class:'sec brief',id:'s-synthese'},
+    h('header',null,h('h3',null,'Synthèse'),h('small',null,'L’essentiel de cette candidature, mis à jour en direct')),
+    h('div',{class:'bf-head'},
+      d.domains.length?h('div',{class:'chips'},d.domains.map(t=>h('span',{class:'chip dom'},t))):fill('Ajouter le domaine','entreprise'),
+      h('div',null,h('div',{class:'t'},d.title||'Stage non intitulé'),ctx&&h('div',{class:'s'},ctx))),
+    d.realNeed?h('p',{class:'bf-need'},d.realNeed):fill('Noter ce qu’ils cherchent vraiment','besoin'),
+    h('div',{class:'bf-grid'},
+      blk('Compétences demandées',skills.length?h('div',null,h('div',{class:'chips big'},skills.map(sc)),
+        h('div',{class:'bf-cov',style:'margin-top:8px'},cv.n+'/'+cv.total+' démontrées'+(keyN?' · clés '+keyCov+'/'+keyN:''),h('div',{class:'meter'},h('span',{style:'width:'+Math.round(cv.n/cv.total*100)+'%'})))):fill('Ajouter les compétences','competences'),true),
+      blk('Missions',d.missions?h('p',null,d.missions):fill('Décrire les missions','stage'),true),
+      blk('Profil recherché',d.profile?h('p',null,d.profile):fill('Noter le profil','besoin')),
+      blk('Qualités attendues',d.softSkills.length?h('div',{class:'chips'},d.softSkills.map(t=>h('span',{class:'chip'},t))):fill('Ajouter des qualités','besoin')),
+      blk('Points de vigilance',d.constraints?h('p',null,d.constraints):fill('Noter les contraintes','besoin')),
+      blk('Équipe et recrutement',kv([['Équipe',d.team],['Processus',d.process]])||fill('Noter l’équipe et le processus','besoin')),
+      blk('Le stage en bref',kv([['Durée',d.durationMonths?d.durationMonths+' mois':''],['Début',d.startDate?fmtDate(d.startDate):''],['Lieu',d.location],['Mode',d.workMode?mode:''],
+        ['Gratification',d.pay!==''&&d.pay!=null?d.pay+' € brut / mois':''],['Canal',d.channel],['Référence',d.offerRef],
+        ['Annonce',link?h('a',{href:link,target:'_blank',rel:'noopener noreferrer',referrerpolicy:'no-referrer'},'Ouvrir l’offre'):'']])||fill('Renseigner le stage','stage')),
+      blk('Avancement',h('div',{style:'display:flex;flex-direction:column;gap:8px'},h('span',{class:'pill',style:'align-self:flex-start',dataset:{st:d.status}},STAT_L[d.status]),
+        kv([['Envoyée le',d.appliedAt?fmtDate(d.appliedAt):''],['Date limite',d.deadline?fmtDate(d.deadline)+' ('+rel(d.deadline)+')':''],
+          ['Prochaine étape',d.nextAction?d.nextAction+(d.nextDate?' · '+fmtShort(d.nextDate):''):(d.nextDate?fmtShort(d.nextDate):'')],['Relance',f&&f.due?'À faire maintenant':'']]))),
+      blk('Ce que j’ai envoyé',d.provided.length?h('ul',{class:'bf-list'},d.provided.map(p=>h('li',null,(DOCK_L[p.kind]||'Autre')+(p.label?' · '+p.label:'')+(p.date?' · '+fmtShort(p.date):'')))):fill('Noter les documents envoyés','dossier')),
+      blk('Projets mis en avant',projects.length?h('div',null,h('div',{class:'chips'},projects.map(p=>h('span',{class:'chip'},p.name||'Sans nom'))),d.projectNote&&h('p',{style:'margin-top:6px'},d.projectNote)):fill('Choisir les projets présentés','projets')),
+      blk('Contacts',d.contacts.length?h('ul',{class:'bf-list'},d.contacts.map(c=>h('li',null,[c.name,c.role].filter(Boolean).join(' · ')+(c.email?' · '+c.email:'')))):fill('Ajouter un contact','contacts')),
+      blk('Mon angle d’accroche',d.whyMe?h('p',null,d.whyMe):fill('Écrire mon angle','besoin'))));
+}
+function appSections(){
+  const d=D.doc;
+  const f=followUp(d);
+  const etape=sec('etape','Prochaine étape',f&&f.due?'Relance à faire':null,
+    h('div',{class:'fgrid'},inp('nextAction','Action à mener','nextAction',{ph:'Relancer par mail, préparer l’entretien…',wide:true}),
+      inp('nextDate','Pour le','nextDate',{type:'date'}),inp('deadline','Date limite de candidature','deadline',{type:'date'}),
+      inp('appliedAt','Candidature envoyée le','appliedAt',{type:'date'}),
+      h('div',{class:'field'},h('label',null,'Relance'),h('button',{class:'btn wr',type:'button',onclick:()=>{
+        d.events.push({id:uid(),date:today(),type:'followup',text:'Relance envoyée'});d.nextDate=addDays(today(),7);d.nextAction=d.nextAction||'Attendre une réponse';
+        touch();flush();toast('Relance notée. Prochaine échéance dans 7 jours.');rebuildDrawer()}},icon('check',15),'Marquer comme relancée'),h('small',null,'Sans date prévue, une relance est conseillée '+FOLLOWUP_DAYS+' jours après le dernier échange.'))));
+  const entreprise=sec('entreprise','Entreprise',null,h('div',{class:'fgrid'},
+    h('div',{class:'field wide'},h('label',{for:'f-domains-a'},'Domaine(s) de travail'),tagInput('f-domains-a','Domaines de travail',d.domains,{list:'domains-list'}),h('small',null,'Ex. SOC, pentest, data engineering. Plusieurs possibles.')),
+    inp('sector','Secteur d’activité','sector',{ph:'Conseil, éditeur, défense, banque…'}),inp('location','Lieu','location',{ph:'Ville, pays'}),
+    inp('website','Site web','website',{ph:'https://…'}),sel('channel','Comment l’avez-vous trouvée ?','channel',[''].concat(CHANNELS).map(c=>c===''?['','Non précisé']:[c,c]))));
+  const besoin=sec('besoin','Ce qu’ils cherchent vraiment','Lire entre les lignes de l’offre',h('div',{class:'fgrid'},
+    txt('realNeed','Le vrai besoin derrière l’offre','realNeed',{rows:4,ph:'Quel problème l’équipe veut-elle résoudre ? Quel projet précis ? Quel profil idéal ?'}),
+    h('div',{class:'field wide'},h('label',{for:'f-soft'},'Qualités et savoir-être attendus'),tagInput('f-soft','Qualités attendues',d.softSkills,{list:'soft-list'})),
+    txt('profile','Profil recherché','profile',{rows:3,ph:'Niveau d’études, formation, expérience attendue'}),
+    txt('constraints','Points de vigilance','constraints',{rows:2,ph:'Habilitation, nationalité, enquête de sécurité, déplacements, astreintes…'}),
+    inp('team','Équipe et encadrement','team',{wide:true,ph:'Taille de l’équipe, tuteur, séniorité…'}),
+    txt('process','Processus de recrutement','process',{rows:2,ph:'Étapes, tests techniques, délais annoncés…'}),
+    txt('whyMe','Mon angle d’accroche','whyMe',{rows:3,ph:'Pourquoi je suis le bon profil pour cette offre'})));
+  const stage=sec('stage','Stage proposé',null,h('div',{class:'fgrid'},
+    inp('title','Intitulé du stage','title',{wide:true,ph:'Ex. Stagiaire analyste SOC'}),inp('offerUrl','Lien de l’offre','offerUrl',{ph:'https://…'}),inp('offerRef','Référence','offerRef'),
+    inp('durationMonths','Durée (mois)','durationMonths',{type:'number',num:true,min:'1'}),inp('startDate','Début souhaité','startDate',{type:'date'}),
+    sel('workMode','Mode de travail','workMode',WORK),inp('pay','Gratification (€ brut / mois)','pay',{type:'number',num:true,min:'0'}),
+    txt('missions','Missions','missions',{ph:'Ce que l’on vous demandera de faire',rows:4})));
+  const cov=coverage(d);
+  const comp=sec('competences','Compétences demandées',cov.total?cov.n+' sur '+cov.total+' démontrées par vos projets':null,
+    h('p',{class:'hint'},'Étoile : compétence clé, celle sur laquelle l’entreprise insiste. Vert : démontrée dans un de vos projets. Orange : à mettre en avant autrement ou à renforcer.'),
+    h('div',{class:'field',style:'margin-bottom:14px'},tagInput('f-skills','Compétences demandées',d.skills,{cov:true,keyArr:d.keySkills,list:'skills-list'})));
+  const dossier=sec('dossier','Données fournies','Ce que cette entreprise a reçu de vous',
+    h('p',{class:'hint'},'Notez ce qui a été envoyé, jamais les documents eux-mêmes. Évitez numéro de sécurité sociale, RIB et mots de passe.'),
+    listEditor('provided',()=>({kind:'cv',label:'',url:'',date:today(),note:''}),(it,rm)=>h('div',{class:'rowc'},
+      h('div',{class:'rl a'},miniSel(it,'kind','Type de document',DOCK),mini(it,'label','Version ou intitulé',{ph:'Ex. CV v3, orienté SOC'}),rmBtn(rm)),
+      h('div',{class:'rl b'},mini(it,'date','Date d’envoi',{type:'date'}),mini(it,'url','Lien',{ph:'Lien (facultatif)'}),mini(it,'note','Précisions',{ph:'Envoyé par email, via le portail…'}))),
+      [['CV',{kind:'cv'}],['Lettre',{kind:'letter'}],['Portfolio',{kind:'portfolio'}],['GitHub',{kind:'github'}],['LinkedIn',{kind:'linkedin'}],['Relevé de notes',{kind:'grades'}],['Autre',{kind:'other'}]]));
+  const contacts=sec('contacts','Contacts',null,
+    listEditor('contacts',()=>({name:'',role:'',email:'',phone:'',linkedin:'',note:''}),(it,rm)=>h('div',{class:'rowc'},
+      h('div',{class:'rl a'},mini(it,'name','Nom'),mini(it,'role','Fonction',{ph:'RH, manager, tuteur…'}),rmBtn(rm)),
+      h('div',{class:'rl c'},mini(it,'email','Email',{type:'email'}),mini(it,'phone','Téléphone',{type:'tel'}),mini(it,'linkedin','Profil LinkedIn')),
+      mini(it,'note','Remarques')),null,'Ajouter un contact'));
+  const projets=projectsSection();
+  const histo=eventsSection();
+  const notes=sec('notes','Notes',null,h('div',{class:'fgrid'},txt('notes','Notes libres, retours d’entretien, motif de refus…','notes',{rows:6})));
+  return [briefEl(),etape,entreprise,besoin,stage,comp,dossier,contacts,projets,histo,notes];
+}
+function projectsSection(){
+  const d=D.doc,all=[...S.projects.values()].sort((a,b)=>a.name.localeCompare(b.name,'fr'));
+  const box=h('div'),pick=h('div',{class:'ppick'});
+  const draw=()=>pick.replaceChildren(...all.map(p=>{const on=d.projectIds.includes(p.id);
+    return h('button',{type:'button','aria-pressed':String(on),onclick:()=>{const i=d.projectIds.indexOf(p.id);if(i>=0)d.projectIds.splice(i,1);else d.projectIds.push(p.id);touch();draw()}},on&&icon('check',14),p.name||'Sans nom')}));
+  draw();
+  if(!all.length) box.append(h('p',{class:'hint'},'Aucun projet décrit pour le moment. ',h('button',{class:'link',type:'button',onclick:()=>{closeDrawer();go('projects')}},'Ajouter vos projets'),' pour pouvoir choisir ceux que vous présentez ici.'));
+  else box.append(pick);
+  box.append(h('div',{class:'fgrid'},txt('projectNote','Angle présenté','projectNote',{ph:'Pourquoi ces projets pour cette offre ?',rows:3})));
+  return sec('projets','Projets présentés','Ceux que vous avez mis en avant pour cette entreprise',box);
+}
+function eventsSection(){
+  const d=D.doc,list=h('ul',{class:'evl',id:'ev-list'});
+  const draw=()=>{const sorted=d.events.map((e,i)=>[e,i]).sort((a,b)=>(b[0].date||'').localeCompare(a[0].date||'')||b[1]-a[1]);
+    list.replaceChildren(...sorted.map(([e])=>{e.id=e.id||uid();return h('li',null,
+      h('span',{class:'ev-d'},mini(e,'date','Date',{type:'date'})),h('span',{class:'ev-t'},miniSel(e,'type','Type',EV)),mini(e,'text','Détail'),rmBtn(()=>{d.events.splice(d.events.indexOf(e),1);touch();draw()}))}));
+    if(!d.events.length)list.append(h('li',{style:'display:block'},h('div',{class:'empty sm'},'Aucun échange noté. Les changements de statut s’ajoutent seuls.')))};
+  list._redraw=draw;
+  let nd=today(),nt='note',nx='';
+  const add=h('div',{class:'addbar wr'},
+    h('select',{class:'select',id:'ev-type','aria-label':'Type d’échange',value:'note',onchange:e=>nt=e.target.value},EV.filter(x=>x[0]!=='status').map(([k,l])=>h('option',{value:k},l))),
+    h('input',{class:'input',id:'ev-date',type:'date','aria-label':'Date',value:nd,oninput:e=>nd=e.target.value}),
+    h('input',{class:'input',id:'ev-text',type:'text','aria-label':'Détail de l’échange',placeholder:'Ce qui s’est dit ou passé',autocomplete:'off',oninput:e=>nx=e.target.value,onkeydown:e=>{if(e.key==='Enter'){e.preventDefault();submit()}}}),
+    h('button',{class:'btn',type:'button',onclick:submit},icon('plus',14),'Ajouter'));
+  function submit(){if(!nx.trim()&&nt==='note')return;d.events.push({id:uid(),date:nd||today(),type:nt,text:nx.trim()});
+    nx='';$('#ev-text').value='';touch();draw()}
+  draw();
+  return sec('historique','Historique',null,add,list);
+}
+
+/* project drawer */
+function projectHeadControls(){
+  const d=D.doc;
+  return [h('select',{class:'select',id:'f-pstatus','aria-label':'Statut du projet',value:d.status,onchange:e=>{d.status=e.target.value;touch()}},PSTAT.map(([k,l])=>h('option',{value:k},l))),
+    h('select',{class:'select',id:'f-context','aria-label':'Contexte',value:d.context,onchange:e=>{d.context=e.target.value;touch()}},CTX.map(([k,l])=>h('option',{value:k},l)))];
+}
+function projectSections(){
+  const d=D.doc;
+  const used=[...S.apps.values()].filter(a=>a.projectIds.includes(d.id));
+  return [
+    sec('identite','Identité',null,h('div',{class:'fgrid'},
+      inp('startMonth','Début','startMonth',{type:'month'}),inp('endMonth','Fin','endMonth',{type:'month'}),
+      inp('role','Mon rôle','role',{ph:'Développeur principal, chef de projet…'}),inp('teamSize','Taille de l’équipe','teamSize',{type:'number',num:true,min:'1'}))),
+    sec('resume','Résumé et pitch',null,h('div',{class:'fgrid'},
+      txt('summary','Résumé en une ou deux phrases','summary',{rows:3,ph:'Ce que fait le projet et pourquoi il existe'}),
+      txt('pitch','Pitch de 30 secondes','pitch',{rows:3,ph:'Ce que vous diriez à un recruteur'}),
+      txt('description','Description détaillée','description',{rows:6,ph:'Architecture, choix techniques, fonctionnement'}))),
+    sec('techno','Technologies et compétences','Alimente l’analyse de couverture',
+      h('div',{class:'field',style:'margin-bottom:12px'},h('label',{for:'f-tech'},'Technologies'),tagInput('f-tech','Technologies',d.technologies,{})),
+      h('div',{class:'field',style:'margin-bottom:12px'},h('label',{for:'f-pskills'},'Compétences démontrées'),tagInput('f-pskills','Compétences démontrées',d.skills,{}),h('small',null,'Même vocabulaire que dans les offres : c’est ce qui permet la comparaison.')),
+      h('div',{class:'field',style:'margin-bottom:14px'},h('label',{for:'f-domains'},'Domaines'),tagInput('f-domains','Domaines',d.domains,{list:'domains-list'}))),
+    sec('contrib','Contribution et résultats',null,h('div',{class:'fgrid'},
+      txt('contributions','Ce que j’ai réalisé','contributions',{rows:5,ph:'Une réalisation par ligne'}),
+      txt('results','Résultats et chiffres clés','results',{rows:4,ph:'Mesures, performances, retours obtenus'}),
+      txt('learnings','Difficultés rencontrées et apprentissages','learnings',{rows:4}))),
+    sec('liens','Liens',null,listEditor('links',()=>({label:'',url:''}),(it,rm)=>h('div',{class:'rowc'},h('div',{class:'rl a'},mini(it,'label','Intitulé',{ph:'Dépôt, démo, rapport, vidéo…'}),mini(it,'url','Adresse',{ph:'https://…'}),rmBtn(rm))),
+      [['Dépôt',{label:'Dépôt GitHub'}],['Démo',{label:'Démo'}],['Rapport',{label:'Rapport'}],['Vidéo',{label:'Vidéo'}],['Autre',{}]])),
+    sec('usage','Utilisation',used.length?plural(used.length,'candidature','candidatures'):null,
+      used.length?h('div',{class:'chips'},used.map(a=>h('button',{class:'chip',type:'button',onclick:()=>{closeDrawer();openDrawer('apps',a.id)}},a.company||'Sans nom'))):h('p',{class:'hint'},'Ce projet n’a encore été présenté à aucune entreprise. Cochez-le dans la section « Projets présentés » d’une candidature.'))
+  ];
+}
+
+/* ---------- quick add ---------- */
+function quickAdd(kind){
+  if(!S.canWrite)return;
+  const isApp=kind==='apps',v={name:'',title:'',url:'',status:'todo',context:'school'};
+  const close=()=>{$('#layer').querySelectorAll('.modal,.scrim.top').forEach(n=>n.remove())};
+  const submit=e=>{e.preventDefault();if(!v.name.trim()){$('#qa-name').focus();return}
+    const doc=isApp?newApp({company:v.name.trim(),title:v.title.trim(),offerUrl:v.url.trim(),status:v.status,appliedAt:v.status==='sent'?today():'',events:[{id:uid(),date:today(),type:'note',text:'Fiche créée'}]}):newProject({name:v.name.trim(),context:v.context,summary:v.title.trim()});
+    close();saveDoc(kind,doc);openDrawer(kind,doc.id)};
+  const f=(id,label,key,o)=>h('div',{class:'field'+((o&&o.wide)?' wide':'')},h('label',{for:id},label),h('input',{class:'input',id,type:'text',autocomplete:'off',placeholder:(o&&o.ph)||'',oninput:e=>{v[key]=e.target.value}}));
+  const form=h('form',{class:'modal',role:'dialog','aria-modal':'true','aria-label':isApp?'Nouvelle candidature':'Nouveau projet',onsubmit:submit},
+    h('h2',null,isApp?'Nouvelle candidature':'Nouveau projet'),
+    h('div',{class:'fgrid'},f('qa-name',isApp?'Entreprise':'Nom du projet','name',{wide:true,ph:isApp?'Nom de l’entreprise':'Nom du projet'}),
+      f('qa-title',isApp?'Stage proposé':'Résumé en une phrase','title',{wide:true,ph:isApp?'Intitulé de l’offre':''}),
+      isApp&&f('qa-url','Lien de l’offre','url',{wide:true,ph:'https://…'}),
+      isApp&&h('div',{class:'field wide'},h('label',{for:'qa-status'},'Statut'),h('select',{class:'select',id:'qa-status',onchange:e=>v.status=e.target.value},STAT.slice(0,5).map(([k,l])=>h('option',{value:k},l)))),
+      !isApp&&h('div',{class:'field wide'},h('label',{for:'qa-ctx'},'Contexte'),h('select',{class:'select',id:'qa-ctx',onchange:e=>v.context=e.target.value},CTX.map(([k,l])=>h('option',{value:k},l))))),
+    h('div',{class:'acts'},h('button',{class:'btn',type:'button',onclick:close},'Annuler'),h('button',{class:'btn primary',type:'submit'},'Créer et ouvrir la fiche')));
+  $('#layer').append(h('div',{class:'scrim top',onclick:close}),form);
+  $('#qa-name').focus();
+}
+
+/* ---------- export ---------- */
+function blobSave(name,data){const type=/\.csv$/.test(name)?'text/csv;charset=utf-8':'application/json';const u=URL.createObjectURL(new Blob([data],{type}));
+  const a=h('a',{href:u,download:name});document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),3000);toast('Fichier enregistré.')}
+async function saveFile(name,data){
+  if(!S.dl){blobSave(name,data);return}
+  try{await S.dl.save({filename:name,data});toast('Fichier enregistré.')}catch(e){if(!e||e.code!=='declined')toast('Export impossible dans cette vue.')}}
+function exportJson(){try{localStorage.setItem('capavril:lastExport',String(Date.now()))}catch(e){}requestRender();saveFile(FILEP+'-sauvegarde-'+today()+'.json',JSON.stringify({app:'cap-stage',version:1,exportedAt:new Date().toISOString(),apps:[...S.apps.values()],projects:[...S.projects.values()],prefs:S.prefs},null,2))}
+function exportCsv(){saveFile(FILEP+'-candidatures-'+today()+'.csv',csvText())}
+function csvText(){
+  const c=v=>{v=v==null?'':String(v);return /[";\n\r]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v};
+  const cols=['Entreprise','Statut','Priorité','Stage','Lien de l’offre','Lieu','Durée (mois)','Début souhaité','Gratification (€/mois)','Canal','Envoyée le','Date limite','Prochaine étape','Pour le','Compétences demandées','Données fournies','Projets présentés','Contacts','Notes','Domaines','Compétences clés','Ce qu’ils cherchent vraiment'];
+  const rows=[...S.apps.values()].sort((a,b)=>a.company.localeCompare(b.company,'fr')).map(a=>[a.company,STAT_L[a.status],PRIO_L[a.priority],a.title,a.offerUrl,a.location,a.durationMonths,a.startDate,a.pay,a.channel,a.appliedAt,a.deadline,a.nextAction,a.nextDate,
+    a.skills.join(', '),a.provided.map(p=>(DOCK_L[p.kind]||'Autre')+(p.label?' ('+p.label+')':'')+(p.date?' '+p.date:'')).join(' | '),
+    a.projectIds.map(id=>(S.projects.get(id)||{}).name).filter(Boolean).join(', '),a.contacts.map(x=>[x.name,x.role,x.email].filter(Boolean).join(' - ')).join(' | '),a.notes,a.domains.join(', '),a.keySkills.join(', '),a.realNeed]);
+  return '\ufeff'+[cols].concat(rows).map(r=>r.map(c).join(';')).join('\r\n');
+}
+
+/* ---------- boot ---------- */
+document.addEventListener('keydown',e=>{
+  if(e.key!=='Escape')return;
+  const m=$('#layer .modal');if(m){m.parentNode.querySelectorAll('.modal,.scrim.top').forEach(n=>n.remove());return}
+  if(D)closeDrawer();
+});
+document.addEventListener('visibilitychange',()=>{if(document.hidden)flush()});
+window.addEventListener('pagehide',()=>flush());
+let lastWarn=0;
+document.addEventListener('input',e=>{
+  const t=e.target;if(!t||!t.closest||!t.closest('.drawer'))return;
+  const v=t.value||'';if(v.length<9)return;
+  for(const r of SENSITIVE){if(r[0].test(v)){if(Date.now()-lastWarn>15000){lastWarn=Date.now();toast('Attention : cette saisie ressemble à '+r[1]+'. Évitez de la stocker ici.')}break}}
+});
+$('#quick-app').addEventListener('click',()=>quickAdd('apps'));
+
+async function init(){
+  const v=(location.hash||'').slice(1);if(NAV.some(n=>n[0]===v))S.view=v;
+  if(STANDALONE){
+    const b=$('.brand b'),sm=$('.brand small');if(b)b.textContent='Cap Stage';if(sm)sm.textContent='Candidatures de stage';
+    let vaulted=false,blocked=false;
+    try{vaulted=!!localStorage.getItem(VKEY)}catch(e){blocked=true}
+    try{localStorage.setItem('capavril:t','1');localStorage.removeItem('capavril:t')}catch(e){blocked=true}
+    try{navigator.storage.persisted().then(v=>{S.persisted=v;requestRender()},()=>{})}catch(e){}
+    if(blocked)S.note='Le stockage du navigateur est bloqué (navigation privée ?) : vos données seront perdues à la fermeture de la page. Exportez régulièrement une sauvegarde.';
+    if(vaulted){S.locked='vault';document.body.classList.add('ro');renderNav();renderMain();return}
+  }
+  renderNav();renderMain();
+  const api=window.claude;let db=null,user=null;
+  if(api&&api.use){
+    try{db=await api.use('db')}catch(e){}
+    try{user=await api.use('user')}catch(e){}
+    try{S.dl=await api.use('downloads')}catch(e){}
+  }
+  if(user){
+    try{if((await user.isOwner())===false){S.locked=true;document.body.classList.add('ro')}}catch(e){}
+    if(!S.locked){try{if((await user.can('data.write'))===false){S.canWrite=false;document.body.classList.add('ro')}}catch(e){}}
+  }
+  if(S.locked){renderNav();renderMain();return}
+  if(db){S.store=dbStore(db)}
+  else{S.store=localStore();if(api)S.note='La base de données n’est pas disponible dans cette vue : les données sont gardées localement dans ce navigateur.'}
+  renderSideFoot();attach();
+}
+init();
+})();
+</script>

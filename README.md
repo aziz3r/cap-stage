@@ -32,3 +32,5 @@ Un outil gratuit pour suivre ses candidatures de stage, sans compte et sans serv
 ## Développement
 
 Le site tient dans un seul fichier, `index.html` (HTML, CSS et JavaScript sans dépendance). Il se déploie tel quel sur GitHub Pages.
+
+Pour régénérer le site : `python3 build/build.py . [IDENTIFIANT_CLIENT_GOOGLE]` (le code source est dans `build/source.html`). Sans identifiant, la synchronisation Google Drive est absente et la page ne peut contacter aucun serveur.
